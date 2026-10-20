@@ -1,0 +1,439 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Archive,
+  ArrowLeft,
+  ChevronDown,
+  Download,
+  Paperclip,
+  Reply,
+  Send,
+  Star,
+  Trash2,
+  ImageOff,
+  Info,
+} from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ErrorState, LoadingState } from '@/components/common/States';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { toast } from '@/components/ui/toast';
+import { useErrorMessage } from '@/hooks/useErrorMessage';
+import { formatAddress, formatAddressList } from '@/lib/mail/address';
+import { formatBytes, formatDate, initials } from '@/lib/format';
+import {
+  archiveMessage,
+  deleteMessage,
+  updateMessage,
+  messageKeys,
+  type MessageDetail,
+} from '@/features/message-list/api';
+import { useMessageBody, useMessageDetail } from '@/features/message-list/useMessages';
+import { patchMessageCaches } from '@/features/message-list/messageCache';
+import { SafeMailFrame } from './SafeMailFrame';
+import { messageAttachmentUrl, messageRawUrl } from './downloads';
+import { useComposeLauncher } from '@/features/compose/useComposeLauncher';
+import { isSenderImagesAllowed, allowSenderImages } from '@/lib/mail/remoteImages';
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3 text-xs">
+      <dt className="w-20 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </div>
+  );
+}
+
+export function MessageReader({
+  messageId,
+  onCloseMobile,
+  onDeleted,
+  readOnly = false,
+}: {
+  messageId: string;
+  onCloseMobile: () => void;
+  onDeleted: () => void;
+  readOnly?: boolean;
+}) {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const messageError = useErrorMessage();
+  const { launch } = useComposeLauncher();
+  const detail = useMessageDetail(messageId);
+  const body = useMessageBody(messageId);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [allowed, setAllowed] = useState(false);
+  const [blockedCount, setBlockedCount] = useState(0);
+  const markedReadRef = useRef<string | null>(null);
+
+  const message = detail.data;
+  const senderEmail = message?.from?.email;
+  const senderAllowed = isSenderImagesAllowed(senderEmail);
+
+  useEffect(() => {
+    setAllowed(senderAllowed);
+  }, [senderAllowed]);
+
+  const applyUpdate = (update: { unread?: boolean; marked?: boolean }) => {
+    if (!message) return;
+    queryClient.setQueryData<MessageDetail>(messageKeys.detail(message.id), {
+      ...message,
+      ...update,
+    });
+    patchMessageCaches(queryClient, (summary) =>
+      summary.id === message.id ? { ...summary, ...update } : summary,
+    );
+  };
+
+  const update = useMutation({
+    mutationFn: (patch: { unread?: boolean; marked?: boolean }) =>
+      updateMessage(messageId, patch),
+    onMutate: (patch) => applyUpdate(patch),
+    onError: (error) => {
+      toast(t('common.updateFailed'), {
+        description: messageError(error),
+        variant: 'destructive',
+      });
+      void queryClient.invalidateQueries({ queryKey: ['messages'] });
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(messageKeys.detail(updated.id), updated);
+    },
+  });
+
+  useEffect(() => {
+    if (readOnly) return;
+    if (!message || !message.unread || markedReadRef.current === message.id) return;
+    markedReadRef.current = message.id;
+    update.mutate({ unread: false });
+    // The mutation object is stable enough here; this runs once per selected message.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message?.id, message?.unread, readOnly]);
+
+  const archive = useMutation({
+    mutationFn: () => archiveMessage(messageId),
+    onSuccess: () => {
+      toast(t('reader.archiveSuccess'));
+      void queryClient.invalidateQueries({ queryKey: ['archive'] });
+    },
+    onError: (error) =>
+      toast(t('common.updateFailed'), { description: messageError(error), variant: 'destructive' }),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => deleteMessage(messageId),
+    onSuccess: () => {
+      toast(t('mail.deleteSuccess'));
+      patchMessageCaches(queryClient, (summary) =>
+        summary.id === messageId ? null : summary,
+      );
+      void queryClient.invalidateQueries({ queryKey: ['messages'] });
+      void queryClient.invalidateQueries({ queryKey: ['mailboxes'] });
+      setDeleteOpen(false);
+      onDeleted();
+    },
+    onError: (error) =>
+      toast(t('common.deleteFailed'), { description: messageError(error), variant: 'destructive' }),
+  });
+
+  if (detail.isPending) {
+    return <LoadingState label={t('reader.loading')} />;
+  }
+
+  if (detail.isError || !message) {
+    return (
+      <ErrorState
+        title={t('reader.errorTitle')}
+        error={detail.error}
+        onRetry={() => void detail.refetch()}
+      />
+    );
+  }
+
+  const attachments = message.attachments ?? body.data?.attachments ?? [];
+  const reply = (mode: 'reply' | 'replyAll' | 'forward') => {
+    void launch({
+      mode,
+      message,
+      messageBodyHtml: body.data?.html,
+      messageBodyText: body.data?.text,
+      accountId: message.accountId,
+    });
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2 md:h-14 md:px-3">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="md:hidden"
+          aria-label={t('mail.mobileBackToList')}
+          onClick={onCloseMobile}
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+        </Button>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => reply('reply')}>
+          <Reply className="size-4" aria-hidden="true" />
+          <span className="hidden sm:inline">{t('reader.reply')}</span>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={t('reader.moreActions')}>
+              <ChevronDown className="size-4" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => reply('replyAll')}>
+              <Reply className="size-4" aria-hidden="true" />
+              {t('reader.replyAll')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => reply('forward')}>
+              <ForwardIcon />
+              {t('reader.forward')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => reply('forward')}>
+          <ForwardIcon />
+          <span className="hidden sm:inline">{t('reader.forward')}</span>
+        </Button>
+
+        <div className="flex-1" />
+
+        {readOnly ? null : (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={message.marked ? t('reader.unmark') : t('reader.mark')}
+                  aria-pressed={message.marked}
+                  onClick={() => update.mutate({ marked: !message.marked })}
+                >
+                  <Star
+                    className={message.marked ? 'size-4 fill-current' : 'size-4'}
+                    aria-hidden="true"
+                  />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {message.marked ? t('reader.unmark') : t('reader.mark')}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('reader.archive')}
+                  onClick={() => archive.mutate()}
+                  disabled={archive.isPending}
+                >
+                  <Archive className="size-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('reader.archive')}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t('reader.delete')}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('reader.delete')}</TooltipContent>
+            </Tooltip>
+          </>
+        )}
+      </div>
+
+      <div className="scrollbar-thin max-h-[46%] shrink-0 overflow-y-auto border-b px-4 py-4 md:px-6">
+        <div className="flex items-start gap-3">
+          <Avatar className="mt-0.5 size-9 border">
+            <AvatarFallback>
+              {initials(message.from?.name || message.from?.email || message.subject)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold leading-snug md:text-lg">{message.subject}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatAddress(message.from)}
+              {message.accountEmail ? ` · ${message.accountEmail}` : ''}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {formatDate(message.receivedAt ?? message.sentAt, i18n.language, undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {message.marked ? (
+              <Badge variant="outline">
+                <Star className="size-3 fill-current" aria-hidden="true" />
+                {t('mail.markedIndicator')}
+              </Badge>
+            ) : null}
+            {message.preserved ? (
+              <Badge variant="secondary">{t('mail.preservedIndicator')}</Badge>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>
+            {t('common.to')}: {formatAddressList(message.to, i18n.language) || t('common.none')}
+          </span>
+          {message.cc && message.cc.length > 0 ? (
+            <span>· {t('common.cc')}: {formatAddressList(message.cc, i18n.language)}</span>
+          ) : null}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+          >
+            <Info className="size-3.5" aria-hidden="true" />
+            {detailsOpen ? t('reader.hideDetails') : t('reader.showDetails')}
+          </Button>
+        </div>
+
+        {detailsOpen ? (
+          <div className="mt-2 space-y-1.5 rounded-lg border bg-muted/30 p-3">
+            <DetailRow label={t('common.from')}>{formatAddress(message.from)}</DetailRow>
+            <DetailRow label={t('common.to')}>
+              {formatAddressList(message.to, i18n.language) || t('common.none')}
+            </DetailRow>
+            {message.bcc && message.bcc.length > 0 ? (
+              <DetailRow label={t('common.bcc')}>
+                {formatAddressList(message.bcc, i18n.language)}
+              </DetailRow>
+            ) : null}
+            {message.messageIdHeader ? (
+              <DetailRow label={t('reader.messageId')}>{message.messageIdHeader}</DetailRow>
+            ) : null}
+            {message.mailboxPath ? (
+              <DetailRow label={t('archive.originalMailbox')}>{message.mailboxPath}</DetailRow>
+            ) : null}
+            <DetailRow label={t('common.size')}>{formatBytes(message.size, i18n.language)}</DetailRow>
+          </div>
+        ) : null}
+
+        {message.preserved ? (
+          <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            {t('reader.preserved')}
+          </p>
+        ) : null}
+
+        {attachments.length > 0 ? (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+              {t('reader.attachmentsTitle')}
+            </p>
+            <ul className="flex flex-wrap gap-2">
+              {attachments.map((attachment) => (
+                <li key={attachment.id}>
+                  <a
+                    href={messageAttachmentUrl(message.id, attachment.id)}
+                    className="flex max-w-72 items-center gap-2 rounded-lg border bg-card px-2.5 py-1.5 text-xs hover:bg-accent"
+                    aria-label={t('reader.downloadAttachment', { name: attachment.filename })}
+                  >
+                    <Paperclip className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <span className="min-w-0 truncate">{attachment.filename}</span>
+                    <span className="shrink-0 text-muted-foreground">
+                      {formatBytes(attachment.size, i18n.language)}
+                    </span>
+                    <Download className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="mt-2 flex items-center gap-2">
+          <a
+            href={messageRawUrl(message.id)}
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
+          >
+            <Download className="size-3" aria-hidden="true" />
+            {t('reader.downloadOriginal')}
+          </a>
+        </div>
+      </div>
+
+      {blockedCount > 0 && !allowed ? (
+        <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 px-4 py-2 text-xs md:px-6">
+          <ImageOff className="size-3.5 text-muted-foreground" aria-hidden="true" />
+          <span className="text-muted-foreground">
+            {t('reader.remoteImagesBlockedCount', { count: blockedCount })}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto h-7 text-xs"
+            onClick={() => {
+              allowSenderImages(senderEmail);
+              setAllowed(true);
+              toast(t('reader.imagesAllowed'));
+            }}
+          >
+            {t('reader.loadRemoteImages')}
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="min-h-0 flex-1 p-3 pt-2 md:p-4 md:pt-2">
+        {body.isPending ? (
+          <LoadingState label={t('reader.bodyLoading')} />
+        ) : body.isError ? (
+          <ErrorState
+            title={t('reader.bodyErrorTitle')}
+            error={body.error}
+            onRetry={() => void body.refetch()}
+          />
+        ) : (
+          <SafeMailFrame
+            html={body.data.html}
+            text={body.data.text}
+            title={t('mail.readerPane')}
+            allowRemoteImages={allowed}
+            onBlockedImages={setBlockedCount}
+            className="h-full w-full rounded-xl border bg-card"
+          />
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={t('reader.delete')}
+        description={t('reader.deleteConfirm')}
+        confirmLabel={t('common.delete')}
+        pending={remove.isPending}
+        onConfirm={() => remove.mutate()}
+      />
+    </div>
+  );
+}
+
+function ForwardIcon() {
+  return <Send className="size-4" aria-hidden="true" />;
+}
