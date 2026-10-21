@@ -1,11 +1,13 @@
 import { useEffect, useMemo } from 'react';
 import { createMailFrameDocument, sanitizeMailHtml, textToHtml } from '@/lib/mail/sanitize';
+import { useResolvedTheme } from '@/hooks/useResolvedTheme';
 
 export function SafeMailFrame({
   html,
   text,
   title,
   allowRemoteImages = false,
+  cidImages,
   className,
   onBlockedImages,
 }: {
@@ -13,21 +15,23 @@ export function SafeMailFrame({
   text?: string;
   title: string;
   allowRemoteImages?: boolean;
+  cidImages?: Record<string, string>;
   className?: string;
   onBlockedImages?: (count: number) => void;
 }) {
+  const dark = useResolvedTheme() === 'dark';
   const sanitized = useMemo(() => {
     const source = html && html.trim() !== '' ? html : textToHtml(text ?? '');
-    return sanitizeMailHtml(source, { allowRemoteImages });
-  }, [allowRemoteImages, html, text]);
+    return sanitizeMailHtml(source, { allowRemoteImages, cidImages, dark });
+  }, [allowRemoteImages, cidImages, dark, html, text]);
 
   useEffect(() => {
     onBlockedImages?.(sanitized.blockedRemoteImages);
   }, [onBlockedImages, sanitized.blockedRemoteImages]);
 
   const documentHtml = useMemo(
-    () => createMailFrameDocument(sanitized.html),
-    [sanitized.html],
+    () => createMailFrameDocument(sanitized.html, dark),
+    [dark, sanitized.html],
   );
 
   return (

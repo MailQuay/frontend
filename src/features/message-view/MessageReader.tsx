@@ -41,6 +41,7 @@ import { useMessageBody, useMessageDetail } from '@/features/message-list/useMes
 import { patchMessageCaches } from '@/features/message-list/messageCache';
 import { SafeMailFrame } from './SafeMailFrame';
 import { messageAttachmentUrl, messageRawUrl } from './downloads';
+import { useCidImages } from './useCidImages';
 import { useComposeLauncher } from '@/features/compose/useComposeLauncher';
 import { isSenderImagesAllowed, allowSenderImages } from '@/lib/mail/remoteImages';
 
@@ -146,6 +147,8 @@ export function MessageReader({
       toast(t('common.deleteFailed'), { description: messageError(error), variant: 'destructive' }),
   });
 
+  const cidImages = useCidImages(detail.data?.id, detail.data?.attachments);
+
   if (detail.isPending) {
     return <LoadingState label={t('reader.loading')} />;
   }
@@ -160,7 +163,9 @@ export function MessageReader({
     );
   }
 
-  const attachments = message.attachments ?? body.data?.attachments ?? [];
+  const attachments = (message.attachments ?? body.data?.attachments ?? []).filter(
+    (attachment) => !(attachment.contentId && attachment.contentType.startsWith('image/')),
+  );
   const reply = (mode: 'reply' | 'replyAll' | 'forward') => {
     void launch({
       mode,
@@ -415,6 +420,7 @@ export function MessageReader({
             text={body.data.text}
             title={t('mail.readerPane')}
             allowRemoteImages={allowed}
+            cidImages={cidImages}
             onBlockedImages={setBlockedCount}
             className="h-full w-full rounded-xl border bg-card"
           />

@@ -3,6 +3,7 @@ import { api, apiUrl, unwrap, type Schemas } from '@/lib/api/client';
 export type Account = Schemas['Account'];
 export type AccountInput = Schemas['AccountInput'];
 export type ConnectionTestResult = Schemas['ConnectionTestResult'];
+export type DiscoveryResult = Schemas['DiscoveryResult'];
 
 export const accountKeys = {
   all: ['accounts'] as const,
@@ -21,6 +22,10 @@ export async function fetchAccount(id: string): Promise<Account> {
 
 export async function createAccount(body: AccountInput): Promise<Account> {
   return unwrap(await api.POST('/accounts', { body }));
+}
+
+export async function discoverAccount(email: string): Promise<DiscoveryResult> {
+  return unwrap(await api.POST('/accounts/discover', { body: { email } }));
 }
 
 export async function updateAccount(id: string, body: AccountInput): Promise<Account> {

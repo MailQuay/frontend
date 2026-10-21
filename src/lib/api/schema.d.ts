@@ -136,6 +136,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["discoverAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/accounts/{id}/test": {
         parameters: {
             query?: never;
@@ -916,7 +932,6 @@ export interface components {
             id: string;
             name: string;
             email: string;
-            color: string;
             provider: string;
             username: string;
             /** @enum {string} */
@@ -935,6 +950,8 @@ export interface components {
             smtpAddr?: string;
             /** @enum {string} */
             smtpSecurity?: "implicit_tls" | "starttls" | "none";
+            smtpUsername?: string;
+            hasSmtpPassword?: boolean;
             smtpHeloHostname?: string;
             syncEnabled: boolean;
             /** @enum {string} */
@@ -958,7 +975,6 @@ export interface components {
             name: string;
             /** Format: email */
             email: string;
-            color?: string;
             provider?: string;
             username: string;
             /** @enum {string} */
@@ -978,6 +994,8 @@ export interface components {
             smtpAddr?: string;
             /** @enum {string} */
             smtpSecurity?: "implicit_tls" | "starttls" | "none";
+            smtpUsername?: string;
+            smtpPassword?: string;
             smtpHeloHostname?: string;
             syncEnabled?: boolean;
             /** @enum {string} */
@@ -988,6 +1006,28 @@ export interface components {
             sentCopyMode?: "auto" | "append" | "none";
             pop3LeaveOnServer?: boolean;
             pop3DeleteOnServer?: boolean;
+        };
+        DiscoveryRequest: {
+            /** Format: email */
+            email: string;
+        };
+        DiscoveryEndpoint: {
+            addr: string;
+            /** @enum {string} */
+            security: "implicit_tls" | "starttls" | "none";
+        };
+        DiscoveryResult: {
+            domain: string;
+            provider: string;
+            /** @enum {string} */
+            source: "registry" | "domain" | "autodiscover" | "autoconfig" | "none";
+            /** @enum {string} */
+            oauthProvider?: "google" | "microsoft";
+            /** @enum {string} */
+            receiveProtocol: "imap" | "pop3";
+            imap?: components["schemas"]["DiscoveryEndpoint"];
+            pop3?: components["schemas"]["DiscoveryEndpoint"];
+            smtp?: components["schemas"]["DiscoveryEndpoint"];
         };
         ConnectionTestResult: {
             receiveOk: boolean;
@@ -1106,7 +1146,6 @@ export interface components {
             isArchive?: boolean;
             accountEmail?: string;
             accountName?: string;
-            accountColor?: string;
             mailboxPath?: string;
             mailboxRole?: string;
         };
@@ -1768,6 +1807,32 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    discoverAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description Best-effort connection settings for the email domain. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
         };
     };
     testAccount: {

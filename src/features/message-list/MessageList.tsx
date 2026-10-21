@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/common/States';
 import { formatListDate, initials } from '@/lib/format';
-import { accountColorValue } from '@/lib/accountColor';
 import { cn } from '@/lib/utils';
 import type { MessageSummary } from './api';
 
@@ -198,11 +197,6 @@ export function MessageList({
                         </div>
                         {showAccountBadge ? (
                           <div className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
-                            <span
-                              className="size-1.5 rounded-full"
-                              style={{ backgroundColor: accountColorValue(message.accountColor) }}
-                              aria-hidden="true"
-                            />
                             <span className="truncate">
                               {message.accountName || message.accountEmail}
                             </span>

@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { CredentialField } from '@/components/ui/credential-field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -38,7 +39,6 @@ import { toast } from '@/components/ui/toast';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
 import {
   accountKeys,
-  createAccount,
   deleteAccount,
   fetchAccounts,
   oauthStartUrl,
@@ -50,8 +50,8 @@ import {
   type AccountInput,
   type ConnectionTestResult,
 } from '@/features/accounts/api';
+import { AccountWizardDialog } from '@/features/accounts/AccountWizard';
 import { fetchSettings, settingsKeys } from '@/features/settings/api';
-import { accountColorValue } from '@/lib/accountColor';
 import { formatDate } from '@/lib/format';
 import { InlineWarning } from '@/components/layout/InsecureTransportBanner';
 
@@ -61,7 +61,6 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 interface AccountFormState {
   name: string;
   email: string;
-  color: string;
   provider: string;
   username: string;
   authType: AccountInput['authType'];
@@ -74,6 +73,8 @@ interface AccountFormState {
   pop3Security: NonNullable<AccountInput['pop3Security']>;
   smtpAddr: string;
   smtpSecurity: NonNullable<AccountInput['smtpSecurity']>;
+  smtpUsername: string;
+  smtpPassword: string;
   smtpHeloHostname: string;
   syncEnabled: boolean;
   initialSyncRange: NonNullable<AccountInput['initialSyncRange']>;
@@ -83,40 +84,10 @@ interface AccountFormState {
   pop3DeleteOnServer: boolean;
 }
 
-function emptyForm(
-  defaults: { initialSyncRange?: AccountInput['initialSyncRange']; downloadScope?: AccountInput['downloadScope'] } | undefined,
-): AccountFormState {
-  return {
-    name: '',
-    email: '',
-    color: '',
-    provider: '',
-    username: '',
-    authType: 'password',
-    password: '',
-    oauthProvider: 'google',
-    receiveProtocol: 'imap',
-    imapAddr: '',
-    imapSecurity: 'implicit_tls',
-    pop3Addr: '',
-    pop3Security: 'implicit_tls',
-    smtpAddr: '',
-    smtpSecurity: 'implicit_tls',
-    smtpHeloHostname: '',
-    syncEnabled: true,
-    initialSyncRange: defaults?.initialSyncRange ?? 'all',
-    downloadScope: defaults?.downloadScope ?? 'full_no_attachments',
-    sentCopyMode: 'auto',
-    pop3LeaveOnServer: true,
-    pop3DeleteOnServer: false,
-  };
-}
-
 function formFromAccount(account: Account): AccountFormState {
   return {
     name: account.name,
     email: account.email,
-    color: account.color ?? '',
     provider: account.provider ?? '',
     username: account.username,
     authType: account.authType,
@@ -129,6 +100,8 @@ function formFromAccount(account: Account): AccountFormState {
     pop3Security: account.pop3Security ?? 'implicit_tls',
     smtpAddr: account.smtpAddr ?? '',
     smtpSecurity: account.smtpSecurity ?? 'implicit_tls',
+    smtpUsername: account.smtpUsername ?? '',
+    smtpPassword: '',
     smtpHeloHostname: account.smtpHeloHostname ?? '',
     syncEnabled: account.syncEnabled,
     initialSyncRange: account.initialSyncRange,
@@ -143,37 +116,26 @@ function AccountFormDialog({
   open,
   onOpenChange,
   account,
-  defaultSyncRange,
-  defaultDownloadScope,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  account: Account | null;
-  defaultSyncRange: AccountInput['initialSyncRange'] | undefined;
-  defaultDownloadScope: AccountInput['downloadScope'] | undefined;
+  account: Account;
   onSaved: (account: Account) => void;
 }) {
   const { t } = useTranslation();
   const message = useErrorMessage();
-  const [form, setForm] = useState<AccountFormState>(() =>
-    account ? formFromAccount(account) : emptyForm({ initialSyncRange: defaultSyncRange, downloadScope: defaultDownloadScope }),
-  );
+  const [form, setForm] = useState<AccountFormState>(() => formFromAccount(account));
 
   useEffect(() => {
     if (!open) return;
-    setForm(
-      account
-        ? formFromAccount(account)
-        : emptyForm({ initialSyncRange: defaultSyncRange, downloadScope: defaultDownloadScope }),
-    );
-  }, [account, defaultDownloadScope, defaultSyncRange, open]);
+    setForm(formFromAccount(account));
+  }, [account, open]);
 
   const mutation = useMutation({
-    mutationFn: (input: AccountInput) =>
-      account ? updateAccount(account.id, input) : createAccount(input),
+    mutationFn: (input: AccountInput) => updateAccount(account.id, input),
     onSuccess: (saved) => {
-      toast(account ? t('account.updated') : t('account.created'));
+      toast(t('account.updated'));
       onSaved(saved);
       onOpenChange(false);
     },
@@ -201,9 +163,7 @@ function AccountFormDialog({
     if (form.smtpAddr.trim() !== '' && !ADDRESS_PATTERN.test(form.smtpAddr.trim())) {
       errors.push(t('account.formErrors.smtpAddr'));
     }
-    if (form.authType === 'password' && !account && form.password === '') {
-      errors.push(t('account.formErrors.password'));
-    }
+
     if (errors.length > 0) {
       toast(t('common.saveFailed'), {
         description: errors[0],
@@ -214,7 +174,6 @@ function AccountFormDialog({
     const input: AccountInput = {
       name: form.name.trim(),
       email: form.email.trim(),
-      color: form.color.trim() || undefined,
       provider: form.provider.trim() || undefined,
       username: form.username.trim(),
       authType: form.authType,
@@ -226,6 +185,8 @@ function AccountFormDialog({
       pop3Security: form.receiveProtocol === 'pop3' ? form.pop3Security : undefined,
       smtpAddr: form.smtpAddr.trim() || undefined,
       smtpSecurity: form.smtpSecurity,
+      smtpUsername: form.smtpUsername.trim() || undefined,
+      smtpPassword: form.smtpPassword || undefined,
       smtpHeloHostname: form.smtpHeloHostname.trim() || undefined,
       syncEnabled: form.syncEnabled,
       initialSyncRange: form.initialSyncRange,
@@ -244,7 +205,7 @@ function AccountFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{account ? t('account.editTitle') : t('account.createTitle')}</DialogTitle>
+          <DialogTitle>{t('account.editTitle')}</DialogTitle>
           <DialogDescription>{t('account.description')}</DialogDescription>
         </DialogHeader>
 
@@ -260,22 +221,13 @@ function AccountFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="account-email">{t('account.email')}</Label>
-              <Input
-                id="account-email"
-                type="email"
+              <Label htmlFor="account-mailbox">{t('account.email')}</Label>
+              <CredentialField
+                id="account-mailbox"
+                inputMode="email"
                 value={form.email}
                 onChange={(event) => update('email', event.target.value)}
                 required
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="account-color">{t('account.color')}</Label>
-              <Input
-                id="account-color"
-                value={form.color}
-                onChange={(event) => update('color', event.target.value)}
-                spellCheck={false}
               />
             </div>
             <div className="space-y-1.5">
@@ -293,6 +245,12 @@ function AccountFormDialog({
                 value={form.username}
                 onChange={(event) => update('username', event.target.value)}
                 autoComplete="off"
+                spellCheck={false}
+                data-form-type="other"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                data-bwignore="1"
+                data-protonpass-ignore="true"
                 required
               />
             </div>
@@ -315,18 +273,14 @@ function AccountFormDialog({
 
           {form.authType === 'password' ? (
             <div className="space-y-1.5">
-              <Label htmlFor="account-password">{t('account.password')}</Label>
-              <Input
-                id="account-password"
-                type="password"
+              <Label htmlFor="account-secret">{t('account.password')}</Label>
+              <CredentialField
+                id="account-secret"
                 value={form.password}
                 onChange={(event) => update('password', event.target.value)}
-                autoComplete="new-password"
                 placeholder={account ? t('account.passwordHint') : undefined}
               />
-              {account ? (
-                <p className="text-[11px] text-muted-foreground">{t('account.passwordHint')}</p>
-              ) : null}
+              <p className="text-[11px] text-muted-foreground">{t('account.passwordHint')}</p>
             </div>
           ) : (
             <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
@@ -365,6 +319,38 @@ function AccountFormDialog({
               )}
             </div>
           )}
+
+          {form.authType === 'password' ? (
+            <div className="space-y-3 rounded-lg border p-3">
+              <p className="text-xs font-medium">{t('account.wizard.smtpAuth')}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="account-smtp-username">{t('account.smtpUsername')}</Label>
+                  <Input
+                    id="account-smtp-username"
+                    value={form.smtpUsername}
+                    onChange={(event) => update('smtpUsername', event.target.value)}
+                    autoComplete="off"
+                    spellCheck={false}
+                    data-form-type="other"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-bwignore="1"
+                    data-protonpass-ignore="true"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="account-smtp-secret">{t('account.smtpPassword')}</Label>
+                  <CredentialField
+                    id="account-smtp-secret"
+                    value={form.smtpPassword}
+                    onChange={(event) => update('smtpPassword', event.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{t('account.smtpPasswordHint')}</p>
+            </div>
+          ) : null}
 
           <div className="space-y-2 rounded-lg border p-3">
             <div className="space-y-1.5">
@@ -621,7 +607,7 @@ function AccountFormDialog({
             {mutation.isPending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : null}
-            {account ? t('common.save') : t('common.create')}
+            {t('common.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -633,7 +619,7 @@ export function MailAccountsSettingsPage() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const message = useErrorMessage();
-  const [formOpen, setFormOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
@@ -698,10 +684,7 @@ export function MailAccountsSettingsPage() {
         <Button
           size="sm"
           className="gap-2"
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
+          onClick={() => setCreateOpen(true)}
         >
           <Plus className="size-4" aria-hidden="true" />
           {t('account.add')}
@@ -722,11 +705,6 @@ export function MailAccountsSettingsPage() {
           {accounts.map((account) => (
             <li key={account.id} className="px-3.5 py-3">
               <div className="flex flex-wrap items-start gap-3">
-                <span
-                  className="mt-1.5 size-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: accountColorValue(account.color) }}
-                  aria-hidden="true"
-                />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[13px] font-medium">{account.name}</p>
@@ -803,10 +781,7 @@ export function MailAccountsSettingsPage() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label={t('account.edit')}
-                    onClick={() => {
-                      setEditing(account);
-                      setFormOpen(true);
-                    }}
+                    onClick={() => setEditing(account)}
                   >
                     <Pencil className="size-4" aria-hidden="true" />
                   </Button>
@@ -825,14 +800,24 @@ export function MailAccountsSettingsPage() {
         </ul>
       )}
 
-      <AccountFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        account={editing}
+      <AccountWizardDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         defaultSyncRange={settingsQuery.data?.defaultInitialSyncRange}
         defaultDownloadScope={settingsQuery.data?.defaultDownloadScope}
         onSaved={invalidateAccounts}
       />
+
+      {editing ? (
+        <AccountFormDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditing(null);
+          }}
+          account={editing}
+          onSaved={invalidateAccounts}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={deleting !== null}

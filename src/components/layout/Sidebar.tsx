@@ -48,11 +48,6 @@ interface FavoriteEntry {
   count?: number;
 }
 
-function accountDot(color: string | undefined): string {
-  if (color && /^#[0-9a-fA-F]{3,8}$/.test(color)) return color;
-  return 'var(--muted-foreground)';
-}
-
 export function Sidebar({
   currentView,
   onNavigate,
@@ -212,11 +207,6 @@ export function Sidebar({
                     ) : (
                       <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     )}
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: accountDot(account.color) }}
-                      aria-hidden="true"
-                    />
                     <span className="min-w-0 flex-1 truncate">{account.email}</span>
                     {unread > 0 ? (
                       <span className="text-[11px] tabular-nums text-muted-foreground">{unread}</span>
