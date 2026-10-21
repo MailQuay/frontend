@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
@@ -17,6 +18,7 @@ import {
 } from '@/features/settings/api';
 import {
   SettingsDivider,
+  SettingsRow,
   SettingsSection,
 } from '@/features/settings/SettingsSection';
 
@@ -24,6 +26,9 @@ interface ConcurrencyForm {
   syncConcurrency: number;
   fetchConcurrency: number;
   envelopeBatchSize: number;
+  searchConcurrency: number;
+  indexBatchSize: number;
+  autoLocalConcurrency: boolean;
 }
 
 export function PerformanceSettingsPage() {
@@ -35,6 +40,9 @@ export function PerformanceSettingsPage() {
     syncConcurrency: 2,
     fetchConcurrency: 2,
     envelopeBatchSize: 50,
+    searchConcurrency: 1,
+    indexBatchSize: 50,
+    autoLocalConcurrency: true,
   });
 
   useEffect(() => {
@@ -43,6 +51,9 @@ export function PerformanceSettingsPage() {
       syncConcurrency: query.data.concurrency.syncConcurrency,
       fetchConcurrency: query.data.concurrency.fetchConcurrency,
       envelopeBatchSize: query.data.envelopeBatchSize,
+      searchConcurrency: query.data.searchConcurrency,
+      indexBatchSize: query.data.indexBatchSize,
+      autoLocalConcurrency: query.data.autoLocalConcurrency,
     });
   }, [query.data]);
 
@@ -98,10 +109,21 @@ export function PerformanceSettingsPage() {
       fail(`${t('settings.performance.envelopeBatchSize')}: 1–200`);
       return;
     }
+    if (form.searchConcurrency < 1 || form.searchConcurrency > 8) {
+      fail(`${t('settings.performance.searchConcurrency')}: 1–8`);
+      return;
+    }
+    if (form.indexBatchSize < 10 || form.indexBatchSize > 500) {
+      fail(`${t('settings.performance.indexBatchSize')}: 10–500`);
+      return;
+    }
     save.mutate({
       syncConcurrency: form.syncConcurrency,
       fetchConcurrency: form.fetchConcurrency,
       envelopeBatchSize: form.envelopeBatchSize,
+      searchConcurrency: form.searchConcurrency,
+      indexBatchSize: form.indexBatchSize,
+      autoLocalConcurrency: form.autoLocalConcurrency,
     });
   };
 
@@ -183,14 +205,44 @@ export function PerformanceSettingsPage() {
         title={t('settings.performance.local')}
         description={t('settings.performance.localHint')}
       >
-        <div className="grid gap-2 text-xs sm:grid-cols-2">
-          <ReadOnlyValue
+        <SettingsRow
+          htmlFor="performance-auto-local"
+          title={t('settings.performance.autoLocal')}
+          description={t('settings.performance.autoLocalHint')}
+          control={
+            <Switch
+              id="performance-auto-local"
+              checked={form.autoLocalConcurrency}
+              onCheckedChange={(enabled) => update('autoLocalConcurrency', enabled)}
+            />
+          }
+        />
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <NumberField
+            id="performance-search"
             label={t('settings.performance.searchConcurrency')}
-            value={settings.concurrency.searchConcurrency}
+            value={
+              form.autoLocalConcurrency
+                ? settings.concurrency.searchConcurrency
+                : form.searchConcurrency
+            }
+            min={1}
+            max={8}
+            disabled={form.autoLocalConcurrency}
+            onChange={(value) => update('searchConcurrency', value)}
           />
-          <ReadOnlyValue
+          <NumberField
+            id="performance-index-batch"
             label={t('settings.performance.indexBatchSize')}
-            value={settings.concurrency.indexBatchSize}
+            value={
+              form.autoLocalConcurrency
+                ? settings.concurrency.indexBatchSize
+                : form.indexBatchSize
+            }
+            min={10}
+            max={500}
+            disabled={form.autoLocalConcurrency}
+            onChange={(value) => update('indexBatchSize', value)}
           />
         </div>
       </SettingsSection>
@@ -214,21 +266,13 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ReadOnlyValue({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="tabular-nums">{value}</span>
-    </div>
-  );
-}
-
 function NumberField({
   id,
   label,
   value,
   min,
   max,
+  disabled,
   onChange,
 }: {
   id: string;
@@ -236,6 +280,7 @@ function NumberField({
   value: number;
   min: number;
   max: number;
+  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   return (
@@ -249,6 +294,7 @@ function NumberField({
         min={min}
         max={max}
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>

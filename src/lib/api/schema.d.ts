@@ -1449,6 +1449,9 @@ export interface components {
             /** @enum {string} */
             language: "en" | "zh-CN";
             envelopeBatchSize: number;
+            searchConcurrency: number;
+            indexBatchSize: number;
+            autoLocalConcurrency: boolean;
             concurrency: components["schemas"]["ConcurrencySettings"];
             resources: components["schemas"]["ResourceInfo"];
             sessionTtlHours: number;
@@ -1493,6 +1496,9 @@ export interface components {
             syncConcurrency?: number;
             fetchConcurrency?: number;
             envelopeBatchSize?: number;
+            searchConcurrency?: number;
+            indexBatchSize?: number;
+            autoLocalConcurrency?: boolean;
             sessionTtlHours?: number;
             syncIntervalSeconds?: number;
             pop3IntervalSeconds?: number;
