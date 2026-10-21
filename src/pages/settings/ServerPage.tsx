@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/input';
 import { toast } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
@@ -34,70 +33,16 @@ const GIB = 1024 * MIB;
 type LogLevel = NonNullable<SettingsUpdate['logLevel']>;
 
 interface ServerFormState {
-  publicUrl: string;
   sessionTtlHours: number;
   syncIntervalSeconds: number;
   pop3IntervalSeconds: number;
   bodyPrefetchMaxBytes: number;
   maxAttachmentBytes: number;
-  corsOrigins: string;
-  trustedProxies: string;
-  insecureAllow: string;
   googleClientId: string;
   microsoftClientId: string;
   googleClientSecret: string;
   microsoftClientSecret: string;
   logLevel: LogLevel;
-}
-
-function lines(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '');
-}
-
-function validPublicUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
-function validOrigin(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return (
-      (url.protocol === 'http:' || url.protocol === 'https:') &&
-      (url.pathname === '/' || url.pathname === '') &&
-      url.search === '' &&
-      url.hash === ''
-    );
-  } catch {
-    return false;
-  }
-}
-
-function validCidr(value: string): boolean {
-  const [address, prefix] = value.split('/');
-  if (!address || !prefix) return false;
-  const bits = Number(prefix);
-  if (!Number.isInteger(bits)) return false;
-  if (address.includes(':')) {
-    return bits >= 0 && bits <= 128 && /^[0-9a-fA-F:]+$/.test(address);
-  }
-  const octets = address.split('.');
-  return (
-    bits >= 0 &&
-    bits <= 32 &&
-    octets.length === 4 &&
-    octets.every((octet) => {
-      const value = Number(octet);
-      return Number.isInteger(value) && value >= 0 && value <= 255;
-    })
-  );
 }
 
 export function ServerSettingsPage() {
@@ -106,15 +51,11 @@ export function ServerSettingsPage() {
   const message = useErrorMessage();
   const query = useQuery({ queryKey: settingsKeys.detail, queryFn: fetchSettings });
   const [form, setForm] = useState<ServerFormState>({
-    publicUrl: '',
     sessionTtlHours: 168,
     syncIntervalSeconds: 60,
     pop3IntervalSeconds: 300,
     bodyPrefetchMaxBytes: 2 * MIB,
     maxAttachmentBytes: 25 * MIB,
-    corsOrigins: '',
-    trustedProxies: '',
-    insecureAllow: '',
     googleClientId: '',
     microsoftClientId: '',
     googleClientSecret: '',
@@ -126,15 +67,11 @@ export function ServerSettingsPage() {
     if (!query.data) return;
     const settings = query.data;
     setForm({
-      publicUrl: settings.publicUrl,
       sessionTtlHours: settings.sessionTtlHours,
       syncIntervalSeconds: settings.syncIntervalSeconds,
       pop3IntervalSeconds: settings.pop3IntervalSeconds,
       bodyPrefetchMaxBytes: settings.bodyPrefetchMaxBytes,
       maxAttachmentBytes: settings.maxAttachmentBytes,
-      corsOrigins: settings.corsOrigins.join('\n'),
-      trustedProxies: settings.trustedProxies.join('\n'),
-      insecureAllow: settings.insecureAllow.join('\n'),
       googleClientId: settings.googleClientId,
       microsoftClientId: settings.microsoftClientId,
       googleClientSecret: '',
@@ -169,26 +106,10 @@ export function ServerSettingsPage() {
   if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
 
   const settings = query.data;
-  const corsOrigins = lines(form.corsOrigins);
-  const trustedProxies = lines(form.trustedProxies);
-  const insecureAllow = lines(form.insecureAllow);
-
   const fail = (description: string) =>
     toast(t('common.saveFailed'), { description, variant: 'destructive' });
 
   const submit = () => {
-    if (form.publicUrl.trim() !== '' && !validPublicUrl(form.publicUrl.trim())) {
-      fail(t('settings.server.errors.publicUrl'));
-      return;
-    }
-    if (!corsOrigins.every(validOrigin)) {
-      fail(t('settings.server.errors.corsOrigins'));
-      return;
-    }
-    if (!trustedProxies.every(validCidr)) {
-      fail(t('settings.server.errors.trustedProxies'));
-      return;
-    }
     if (form.sessionTtlHours < 1 || form.sessionTtlHours > 8760) {
       fail(`${t('settings.server.sessionTtl')}: 1–8760`);
       return;
@@ -210,15 +131,11 @@ export function ServerSettingsPage() {
       return;
     }
     const body: SettingsUpdate = {
-      publicUrl: form.publicUrl.trim(),
       sessionTtlHours: form.sessionTtlHours,
       syncIntervalSeconds: form.syncIntervalSeconds,
       pop3IntervalSeconds: form.pop3IntervalSeconds,
       bodyPrefetchMaxBytes: form.bodyPrefetchMaxBytes,
       maxAttachmentBytes: form.maxAttachmentBytes,
-      corsOrigins: corsOrigins.map((origin) => new URL(origin).origin),
-      trustedProxies,
-      insecureAllow,
       googleClientId: form.googleClientId.trim(),
       microsoftClientId: form.microsoftClientId.trim(),
       logLevel: form.logLevel,
@@ -234,74 +151,6 @@ export function ServerSettingsPage() {
 
   return (
     <div>
-      <SettingsSection
-        title={t('settings.server.urls')}
-        description={t('settings.server.urlsHint')}
-      >
-        <SettingsRow
-          title={t('settings.server.publicUrl')}
-          description={t('settings.server.publicUrlHint')}
-          htmlFor="server-public-url"
-          control={
-            <Input
-              id="server-public-url"
-              value={form.publicUrl}
-              onChange={(event) => update('publicUrl', event.target.value)}
-              placeholder={t('settings.server.publicUrlPlaceholder')}
-              className="w-80"
-              spellCheck={false}
-            />
-          }
-        />
-        <SettingsDivider />
-        <div className="space-y-1.5 py-2">
-          <label htmlFor="server-cors" className="text-sm font-medium">
-            {t('settings.server.corsOrigins')}
-          </label>
-          <p className="text-xs text-muted-foreground">{t('settings.server.corsOriginsHint')}</p>
-          <Textarea
-            id="server-cors"
-            value={form.corsOrigins}
-            onChange={(event) => update('corsOrigins', event.target.value)}
-            placeholder={t('settings.server.corsOriginsPlaceholder')}
-            className="min-h-20 font-mono text-xs"
-            spellCheck={false}
-          />
-        </div>
-        <SettingsDivider />
-        <div className="space-y-1.5 py-2">
-          <label htmlFor="server-proxies" className="text-sm font-medium">
-            {t('settings.server.trustedProxies')}
-          </label>
-          <p className="text-xs text-muted-foreground">{t('settings.server.trustedProxiesHint')}</p>
-          <Textarea
-            id="server-proxies"
-            value={form.trustedProxies}
-            onChange={(event) => update('trustedProxies', event.target.value)}
-            placeholder={t('settings.server.trustedProxiesPlaceholder')}
-            className="min-h-20 font-mono text-xs"
-            spellCheck={false}
-          />
-        </div>
-        <SettingsDivider />
-        <div className="space-y-1.5 py-2">
-          <label htmlFor="server-insecure-allow" className="text-sm font-medium">
-            {t('settings.server.insecureAllow')}
-          </label>
-          <p className="text-xs text-muted-foreground">{t('settings.server.insecureAllowHint')}</p>
-          <Textarea
-            id="server-insecure-allow"
-            value={form.insecureAllow}
-            onChange={(event) => update('insecureAllow', event.target.value)}
-            placeholder={t('settings.server.insecureAllowPlaceholder')}
-            className="min-h-20 font-mono text-xs"
-            spellCheck={false}
-          />
-        </div>
-      </SettingsSection>
-
-      <SettingsDivider />
-
       <SettingsSection title={t('settings.server.sessions')}>
         <SettingsRow
           title={t('settings.server.sessionTtl')}

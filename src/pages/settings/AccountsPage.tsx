@@ -732,8 +732,10 @@ export function MailAccountsSettingsPage() {
                     {account.imapAddr || account.pop3Addr
                       ? ` · ${account.imapAddr || account.pop3Addr}`
                       : ''}
-                    {account.smtpAddr ? ` · SMTP ${account.smtpAddr}` : ''}
                   </p>
+                  {account.smtpAddr ? (
+                    <p className="text-[11px] text-muted-foreground">SMTP · {account.smtpAddr}</p>
+                  ) : null}
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     {t(`account.syncRanges.${account.initialSyncRange}`)} ·{' '}
                     {t(`account.downloadScopes.${account.downloadScope}`)} ·{' '}

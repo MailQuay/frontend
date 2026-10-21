@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Archive,
   ArrowLeft,
-  ChevronDown,
   Download,
   Paperclip,
   Reply,
@@ -17,12 +16,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -166,7 +159,7 @@ export function MessageReader({
   const attachments = (message.attachments ?? body.data?.attachments ?? []).filter(
     (attachment) => !(attachment.contentId && attachment.contentType.startsWith('image/')),
   );
-  const reply = (mode: 'reply' | 'replyAll' | 'forward') => {
+  const reply = (mode: 'reply' | 'forward') => {
     void launch({
       mode,
       message,
@@ -188,55 +181,69 @@ export function MessageReader({
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
         </Button>
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => reply('reply')}>
-          <Reply className="size-4" aria-hidden="true" />
-          <span className="hidden sm:inline">{t('reader.reply')}</span>
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label={t('reader.moreActions')}>
-              <ChevronDown className="size-4" aria-hidden="true" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onSelect={() => reply('replyAll')}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('reader.reply')}
+              onClick={() => reply('reply')}
+            >
               <Reply className="size-4" aria-hidden="true" />
-              {t('reader.replyAll')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => reply('forward')}>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('reader.reply')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('reader.forward')}
+              onClick={() => reply('forward')}
+            >
               <ForwardIcon />
-              {t('reader.forward')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => reply('forward')}>
-          <ForwardIcon />
-          <span className="hidden sm:inline">{t('reader.forward')}</span>
-        </Button>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('reader.forward')}</TooltipContent>
+        </Tooltip>
+        {readOnly ? null : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={message.marked ? t('reader.unmark') : t('reader.mark')}
+                aria-pressed={message.marked}
+                onClick={() => update.mutate({ marked: !message.marked })}
+              >
+                <Star
+                  className={message.marked ? 'size-4 fill-current' : 'size-4'}
+                  aria-hidden="true"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {message.marked ? t('reader.unmark') : t('reader.mark')}
+            </TooltipContent>
+          </Tooltip>
+        )}
 
         <div className="flex-1" />
 
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" asChild>
+              <a href={messageRawUrl(message.id)} aria-label={t('reader.downloadOriginal')}>
+                <Download className="size-4" aria-hidden="true" />
+              </a>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('reader.downloadOriginal')}</TooltipContent>
+        </Tooltip>
+
         {readOnly ? null : (
           <>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={message.marked ? t('reader.unmark') : t('reader.mark')}
-                  aria-pressed={message.marked}
-                  onClick={() => update.mutate({ marked: !message.marked })}
-                >
-                  <Star
-                    className={message.marked ? 'size-4 fill-current' : 'size-4'}
-                    aria-hidden="true"
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {message.marked ? t('reader.unmark') : t('reader.mark')}
-              </TooltipContent>
-            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -269,55 +276,55 @@ export function MessageReader({
       </div>
 
       <div className="scrollbar-thin max-h-[46%] shrink-0 overflow-y-auto border-b px-4 py-4 md:px-6">
-        <div className="flex items-start gap-3">
+        <h1 className="text-base font-semibold leading-snug md:text-lg">{message.subject}</h1>
+
+        <div className="mt-3 flex items-start gap-3">
           <Avatar className="mt-0.5 size-9 border">
             <AvatarFallback>
               {initials(message.from?.name || message.from?.email || message.subject)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h1 className="text-base font-semibold leading-snug md:text-lg">{message.subject}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {formatAddress(message.from)}
               {message.accountEmail ? ` · ${message.accountEmail}` : ''}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
+              {t('common.to')}: {formatAddressList(message.to, i18n.language) || t('common.none')}
+              {message.cc && message.cc.length > 0
+                ? ` · ${t('common.cc')}: ${formatAddressList(message.cc, i18n.language)}`
+                : null}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <p className="whitespace-nowrap text-xs text-muted-foreground">
               {formatDate(message.receivedAt ?? message.sentAt, i18n.language, undefined, {
                 dateStyle: 'medium',
                 timeStyle: 'short',
               })}
             </p>
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              {message.marked ? (
+                <Badge variant="outline">
+                  <Star className="size-3 fill-current" aria-hidden="true" />
+                  {t('mail.markedIndicator')}
+                </Badge>
+              ) : null}
+              {message.preserved ? (
+                <Badge variant="secondary">{t('mail.preservedIndicator')}</Badge>
+              ) : null}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => setDetailsOpen((open) => !open)}
+                aria-expanded={detailsOpen}
+              >
+                <Info className="size-3.5" aria-hidden="true" />
+                {detailsOpen ? t('reader.hideDetails') : t('reader.showDetails')}
+              </Button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {message.marked ? (
-              <Badge variant="outline">
-                <Star className="size-3 fill-current" aria-hidden="true" />
-                {t('mail.markedIndicator')}
-              </Badge>
-            ) : null}
-            {message.preserved ? (
-              <Badge variant="secondary">{t('mail.preservedIndicator')}</Badge>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>
-            {t('common.to')}: {formatAddressList(message.to, i18n.language) || t('common.none')}
-          </span>
-          {message.cc && message.cc.length > 0 ? (
-            <span>· {t('common.cc')}: {formatAddressList(message.cc, i18n.language)}</span>
-          ) : null}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => setDetailsOpen((open) => !open)}
-            aria-expanded={detailsOpen}
-          >
-            <Info className="size-3.5" aria-hidden="true" />
-            {detailsOpen ? t('reader.hideDetails') : t('reader.showDetails')}
-          </Button>
         </div>
 
         {detailsOpen ? (
@@ -372,16 +379,6 @@ export function MessageReader({
             </ul>
           </div>
         ) : null}
-
-        <div className="mt-2 flex items-center gap-2">
-          <a
-            href={messageRawUrl(message.id)}
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:underline"
-          >
-            <Download className="size-3" aria-hidden="true" />
-            {t('reader.downloadOriginal')}
-          </a>
-        </div>
       </div>
 
       {blockedCount > 0 && !allowed ? (
