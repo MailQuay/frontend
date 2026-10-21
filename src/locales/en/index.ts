@@ -689,6 +689,12 @@ const en = {
       appearance: 'Appearance',
       appearanceHint: 'Follow the system setting or force a light or dark interface.',
       languageHint: 'The interface and the backend language preference are updated together.',
+      networkAvatars: 'Network avatars',
+      networkAvatarsHint:
+        'Load sender avatars from Gravatar first, then fall back to the sender domain favicon through the backend. Turn off to stop all external avatar requests.',
+      gravatarAvatars: 'Gravatar avatars',
+      gravatarAvatarsHint:
+        'Tried first while network avatars are enabled. Turn off to use only the sender domain favicon.',
       timezoneHint: 'Used to display dates and to convert scheduled sending times to UTC.',
       timezonePlaceholder: 'e.g. Europe/Berlin',
       timezoneFormat: 'IANA time zone',

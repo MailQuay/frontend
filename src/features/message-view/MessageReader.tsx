@@ -13,7 +13,7 @@ import {
   ImageOff,
   Info,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/common/SenderAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,7 +22,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { toast } from '@/components/ui/toast';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
 import { formatAddress, formatAddressList } from '@/lib/mail/address';
-import { formatBytes, formatDate, initials } from '@/lib/format';
+import { formatBytes, formatDate } from '@/lib/format';
 import {
   archiveMessage,
   deleteMessage,
@@ -279,11 +279,12 @@ export function MessageReader({
         <h1 className="text-base font-semibold leading-snug md:text-lg">{message.subject}</h1>
 
         <div className="mt-3 flex items-start gap-3">
-          <Avatar className="mt-0.5 size-9 border">
-            <AvatarFallback>
-              {initials(message.from?.name || message.from?.email || message.subject)}
-            </AvatarFallback>
-          </Avatar>
+          <SenderAvatar
+            className="mt-0.5 size-9"
+            name={message.from?.name}
+            email={message.from?.email}
+            fallback={message.subject}
+          />
           <div className="min-w-0 flex-1">
             <p className="text-sm text-muted-foreground">
               {formatAddress(message.from)}

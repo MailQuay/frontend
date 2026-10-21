@@ -685,6 +685,11 @@ const zhCN = {
       appearance: '外观',
       appearanceHint: '跟随系统, 或强制使用浅色 / 深色界面.',
       languageHint: '界面语言和后端语言偏好会同时更新.',
+      networkAvatars: '启用网络头像',
+      networkAvatarsHint:
+        '依次从 Gravatar 和发信域名 favicon 加载发信人头像, 域名图标由后端代理请求. 关闭后不发起任何外部头像请求.',
+      gravatarAvatars: 'Gravatar 头像',
+      gravatarAvatarsHint: '启用网络头像时优先尝试. 关闭后只使用发信域名 favicon.',
       timezoneHint: '用于显示日期, 并把定时发送时间转换为 UTC.',
       timezonePlaceholder: '例如 Europe/Berlin',
       timezoneFormat: 'IANA 时区',

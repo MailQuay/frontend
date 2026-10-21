@@ -16,6 +16,10 @@ const DEFAULT_SIDEBAR_WIDTH = 232;
 interface UiState {
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  gravatarAvatars: boolean;
+  setGravatarAvatars: (enabled: boolean) => void;
+  networkAvatars: boolean;
+  setNetworkAvatars: (enabled: boolean) => void;
   mobilePane: MobilePane;
   setMobilePane: (pane: MobilePane) => void;
   sidebarWidth: number;
@@ -33,6 +37,10 @@ export const useUiStore = create<UiState>()(
     (set) => ({
       theme: 'system',
       setTheme: (theme) => set({ theme }),
+      gravatarAvatars: true,
+      setGravatarAvatars: (gravatarAvatars) => set({ gravatarAvatars }),
+      networkAvatars: true,
+      setNetworkAvatars: (networkAvatars) => set({ networkAvatars }),
       mobilePane: 'list',
       setMobilePane: (mobilePane) => set({ mobilePane }),
       sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
@@ -62,6 +70,8 @@ export const useUiStore = create<UiState>()(
       name: 'mailquay:ui',
       partialize: (state) => ({
         theme: state.theme,
+        gravatarAvatars: state.gravatarAvatars,
+        networkAvatars: state.networkAvatars,
         sidebarWidth: state.sidebarWidth,
         listWidth: state.listWidth,
         expandedAccounts: state.expandedAccounts,

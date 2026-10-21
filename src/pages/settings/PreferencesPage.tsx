@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 import { useAuthStatus } from '@/hooks/useAuth';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
@@ -43,6 +44,10 @@ export function PreferencesSettingsPage() {
   const settingsQuery = useQuery({ queryKey: settingsKeys.detail, queryFn: fetchSettings });
   const message = useErrorMessage();
   const setTheme = useUiStore((state) => state.setTheme);
+  const gravatarAvatars = useUiStore((state) => state.gravatarAvatars);
+  const setGravatarAvatars = useUiStore((state) => state.setGravatarAvatars);
+  const networkAvatars = useUiStore((state) => state.networkAvatars);
+  const setNetworkAvatars = useUiStore((state) => state.setNetworkAvatars);
   const [theme, setThemeValue] = useState<ThemePreference>('system');
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [timezone, setTimezone] = useState('');
@@ -153,6 +158,33 @@ export function PreferencesSettingsPage() {
                 ))}
               </SelectContent>
             </Select>
+          }
+        />
+        <SettingsDivider />
+        <SettingsRow
+          title={t('settings.preferences.networkAvatars')}
+          description={t('settings.preferences.networkAvatarsHint')}
+          htmlFor="settings-network-avatars"
+          control={
+            <Switch
+              id="settings-network-avatars"
+              checked={networkAvatars}
+              onCheckedChange={setNetworkAvatars}
+            />
+          }
+        />
+        <SettingsRow
+          className="ml-2 border-l pl-4"
+          title={t('settings.preferences.gravatarAvatars')}
+          description={t('settings.preferences.gravatarAvatarsHint')}
+          htmlFor="settings-gravatar-avatars"
+          control={
+            <Switch
+              id="settings-gravatar-avatars"
+              checked={gravatarAvatars}
+              onCheckedChange={setGravatarAvatars}
+              disabled={!networkAvatars}
+            />
           }
         />
       </SettingsSection>

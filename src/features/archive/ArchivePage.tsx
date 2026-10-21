@@ -9,7 +9,7 @@ import {
   Paperclip,
   RefreshCw,
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/common/SenderAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +19,7 @@ import { MailSplit } from '@/components/layout/MailSplit';
 import { SafeMailFrame } from '@/features/message-view/SafeMailFrame';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { formatAddress } from '@/lib/mail/address';
-import { formatBytes, formatDate, formatListDate, initials } from '@/lib/format';
+import { formatBytes, formatDate, formatListDate } from '@/lib/format';
 import { allowSenderImages, isSenderImagesAllowed } from '@/lib/mail/remoteImages';
 import { toast } from '@/components/ui/toast';
 import { useUiStore } from '@/stores/ui';
@@ -128,9 +128,12 @@ export function ArchivePage() {
                       isSelected && 'bg-accent',
                     )}
                   >
-                    <Avatar className="size-8 shrink-0 border">
-                      <AvatarFallback>{initials(sender || entry.subject)}</AvatarFallback>
-                    </Avatar>
+                    <SenderAvatar
+                      className="size-8 shrink-0"
+                      name={entry.from?.name || sender}
+                      email={entry.from?.email}
+                      fallback={entry.subject}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline gap-2">
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -231,9 +234,12 @@ export function ArchiveReader({ archiveId, onBack }: { archiveId: string; onBack
 
       <div className="scrollbar-thin max-h-[46%] shrink-0 overflow-y-auto border-b px-4 py-4 md:px-6">
         <div className="flex items-start gap-3">
-          <Avatar className="mt-0.5 size-9 border">
-            <AvatarFallback>{initials(entry.from?.name || entry.from?.email || entry.subject)}</AvatarFallback>
-          </Avatar>
+          <SenderAvatar
+            className="mt-0.5 size-9"
+            name={entry.from?.name}
+            email={entry.from?.email}
+            fallback={entry.subject}
+          />
           <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold leading-snug md:text-lg">
               {entry.subject || t('drafting.noSubject')}

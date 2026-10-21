@@ -1,12 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Paperclip, Star } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { SenderAvatar } from '@/components/common/SenderAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/common/States';
-import { formatListDate, initials } from '@/lib/format';
+import { formatListDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { MessageSummary } from './api';
 
@@ -143,9 +143,11 @@ export function MessageList({
                       className="flex h-full w-full min-w-0 items-center gap-2.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <div className="relative shrink-0">
-                        <Avatar className="size-8 border">
-                          <AvatarFallback>{initials(sender)}</AvatarFallback>
-                        </Avatar>
+                        <SenderAvatar
+                          className="size-8"
+                          name={sender}
+                          email={message.from?.email}
+                        />
                         {message.unread ? (
                           <span
                             className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-background bg-primary"
