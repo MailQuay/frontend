@@ -24,6 +24,7 @@ export function TaskRing({ tasks: providedTasks }: { tasks?: Task[] } = {}) {
     queryKey: taskKeys.list,
     queryFn: fetchTasks,
     refetchInterval: providedTasks ? false : 30_000,
+    refetchOnWindowFocus: false,
     staleTime: 5_000,
     enabled: providedTasks === undefined,
   });
@@ -69,11 +70,12 @@ export function TaskRing({ tasks: providedTasks }: { tasks?: Task[] } = {}) {
     [],
   );
 
-  const visible = tasks.filter(
-    (task) => task.status !== 'cancelled' && !hiddenIds.includes(task.id),
+  const visible = useMemo(
+    () => tasks.filter((task) => task.status !== 'cancelled' && !hiddenIds.includes(task.id)),
+    [tasks, hiddenIds],
   );
-  const ring = buildTaskRing(visible);
-  const geometry = taskSegmentGeometry(ring.segments, CIRCUMFERENCE);
+  const ring = useMemo(() => buildTaskRing(visible), [visible]);
+  const geometry = useMemo(() => taskSegmentGeometry(ring.segments, CIRCUMFERENCE), [ring]);
 
   const cancelClose = () => {
     if (closeTimerRef.current !== undefined) {

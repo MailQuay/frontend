@@ -136,6 +136,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts/import/emclient": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["parseEmclientImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/import/emclient/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                importId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["applyEmclientImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/accounts/discover": {
         parameters: {
             query?: never;
@@ -1045,6 +1079,36 @@ export interface components {
             pop3?: components["schemas"]["DiscoveryEndpoint"];
             smtp?: components["schemas"]["DiscoveryEndpoint"];
         };
+        EmclientImportAccount: {
+            email: string;
+            /** @enum {string} */
+            receiveProtocol: "imap" | "pop3";
+            imapAddr?: string;
+            pop3Addr?: string;
+            smtpAddr?: string;
+            /** @enum {string} */
+            authType: "password" | "oauth2";
+            importable: boolean;
+            selected: boolean;
+            reason?: string;
+        };
+        EmclientImportPreview: {
+            /** Format: uuid */
+            importId: string;
+            accounts: components["schemas"]["EmclientImportAccount"][];
+        };
+        EmclientImportRequest: {
+            emails: string[];
+        };
+        EmclientImportFailure: {
+            email: string;
+            error: string;
+        };
+        EmclientImportResult: {
+            created: string[];
+            skipped: string[];
+            failed: components["schemas"]["EmclientImportFailure"][];
+        };
         ConnectionTestResult: {
             receiveOk: boolean;
             smtpOk: boolean;
@@ -1345,8 +1409,6 @@ export interface components {
             completedAt?: string;
         };
         ConcurrencySettings: {
-            /** @enum {string} */
-            mode: "auto" | "manual";
             syncConcurrency: number;
             fetchConcurrency: number;
             searchConcurrency: number;
@@ -1358,8 +1420,6 @@ export interface components {
             memoryBytes: number;
             cpuSource: string;
             memorySource: string;
-            auto: components["schemas"]["ConcurrencySettings"];
-            effective: components["schemas"]["ConcurrencySettings"];
         };
         Settings: {
             /** @enum {string} */
@@ -1388,6 +1448,7 @@ export interface components {
             timezone: string;
             /** @enum {string} */
             language: "en" | "zh-CN";
+            envelopeBatchSize: number;
             concurrency: components["schemas"]["ConcurrencySettings"];
             resources: components["schemas"]["ResourceInfo"];
             sessionTtlHours: number;
@@ -1429,12 +1490,9 @@ export interface components {
             timezone?: string;
             /** @enum {string} */
             language?: "en" | "zh-CN";
-            /** @enum {string} */
-            concurrencyMode?: "auto" | "manual";
             syncConcurrency?: number;
             fetchConcurrency?: number;
-            searchConcurrency?: number;
-            indexBatchSize?: number;
+            envelopeBatchSize?: number;
             sessionTtlHours?: number;
             syncIntervalSeconds?: number;
             pop3IntervalSeconds?: number;
@@ -1821,6 +1879,72 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    parseEmclientImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    masterPassword?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Parsed account candidates. Credentials stay on the server. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmclientImportPreview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description Upload exceeds the size limit. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    applyEmclientImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                importId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmclientImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Import result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmclientImportResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };

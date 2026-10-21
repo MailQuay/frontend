@@ -146,6 +146,14 @@
   scrollbar-color: var(--border) transparent;
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 .task-panel-enter {
   animation: task-panel-in 160ms ease-out;
 }

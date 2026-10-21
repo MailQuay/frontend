@@ -4,13 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from '@/components/ui/toast';
 import { ErrorState, LoadingState } from '@/components/common/States';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
@@ -24,17 +17,13 @@ import {
 } from '@/features/settings/api';
 import {
   SettingsDivider,
-  SettingsRow,
   SettingsSection,
 } from '@/features/settings/SettingsSection';
-import { InlineWarning } from '@/components/layout/InsecureTransportBanner';
 
 interface ConcurrencyForm {
-  mode: NonNullable<SettingsUpdate['concurrencyMode']>;
   syncConcurrency: number;
   fetchConcurrency: number;
-  searchConcurrency: number;
-  indexBatchSize: number;
+  envelopeBatchSize: number;
 }
 
 export function PerformanceSettingsPage() {
@@ -43,21 +32,17 @@ export function PerformanceSettingsPage() {
   const message = useErrorMessage();
   const query = useQuery({ queryKey: settingsKeys.detail, queryFn: fetchSettings });
   const [form, setForm] = useState<ConcurrencyForm>({
-    mode: 'auto',
     syncConcurrency: 2,
-    fetchConcurrency: 4,
-    searchConcurrency: 2,
-    indexBatchSize: 100,
+    fetchConcurrency: 2,
+    envelopeBatchSize: 50,
   });
 
   useEffect(() => {
     if (!query.data) return;
     setForm({
-      mode: query.data.concurrency.mode,
       syncConcurrency: query.data.concurrency.syncConcurrency,
       fetchConcurrency: query.data.concurrency.fetchConcurrency,
-      searchConcurrency: query.data.concurrency.searchConcurrency,
-      indexBatchSize: query.data.concurrency.indexBatchSize,
+      envelopeBatchSize: query.data.envelopeBatchSize,
     });
   }, [query.data]);
 
@@ -96,8 +81,6 @@ export function PerformanceSettingsPage() {
 
   const settings = query.data;
   const resources = settings.resources;
-  const memoryBudget = form.fetchConcurrency * 128 * 1024 * 1024 + 256 * 1024 * 1024;
-  const exceedsBudget = form.mode === 'manual' && memoryBudget > resources.memoryBytes;
 
   const fail = (description: string) =>
     toast(t('common.saveFailed'), { description, variant: 'destructive' });
@@ -111,20 +94,14 @@ export function PerformanceSettingsPage() {
       fail(`${t('settings.performance.fetchConcurrency')}: 1–32`);
       return;
     }
-    if (form.searchConcurrency < 1 || form.searchConcurrency > 32) {
-      fail(`${t('settings.performance.searchConcurrency')}: 1–32`);
-      return;
-    }
-    if (form.indexBatchSize < 50 || form.indexBatchSize > 500) {
-      fail(`${t('settings.performance.indexBatchSize')}: 50–500`);
+    if (form.envelopeBatchSize < 1 || form.envelopeBatchSize > 200) {
+      fail(`${t('settings.performance.envelopeBatchSize')}: 1–200`);
       return;
     }
     save.mutate({
-      concurrencyMode: form.mode,
       syncConcurrency: form.syncConcurrency,
       fetchConcurrency: form.fetchConcurrency,
-      searchConcurrency: form.searchConcurrency,
-      indexBatchSize: form.indexBatchSize,
+      envelopeBatchSize: form.envelopeBatchSize,
     });
   };
 
@@ -165,54 +142,10 @@ export function PerformanceSettingsPage() {
 
       <SettingsDivider />
 
-      <SettingsSection title={t('settings.performance.autoValues')}>
-        <div className="grid gap-2 text-xs sm:grid-cols-2">
-          <ReadOnlyValue
-            label={t('settings.performance.syncConcurrency')}
-            value={resources.auto.syncConcurrency}
-          />
-          <ReadOnlyValue
-            label={t('settings.performance.fetchConcurrency')}
-            value={resources.auto.fetchConcurrency}
-          />
-          <ReadOnlyValue
-            label={t('settings.performance.searchConcurrency')}
-            value={resources.auto.searchConcurrency}
-          />
-          <ReadOnlyValue
-            label={t('settings.performance.indexBatchSize')}
-            value={resources.auto.indexBatchSize}
-          />
-        </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          {t('settings.performance.effectiveValues')}: {settings.concurrency.mode} ·{' '}
-          {settings.concurrency.syncConcurrency}/{settings.concurrency.fetchConcurrency}/
-          {settings.concurrency.searchConcurrency}/{settings.concurrency.indexBatchSize}
-        </p>
-      </SettingsSection>
-
-      <SettingsDivider />
-
-      <SettingsSection title={t('settings.performance.mode')}>
-        <SettingsRow
-          title={t('settings.performance.mode')}
-          htmlFor="performance-mode"
-          control={
-            <Select
-              value={form.mode}
-              onValueChange={(value) => update('mode', value === 'manual' ? 'manual' : 'auto')}
-            >
-              <SelectTrigger id="performance-mode" className="w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="auto">{t('settings.performance.modeAuto')}</SelectItem>
-                <SelectItem value="manual">{t('settings.performance.modeManual')}</SelectItem>
-              </SelectContent>
-            </Select>
-          }
-        />
-        <SettingsDivider />
+      <SettingsSection
+        title={t('settings.performance.network')}
+        description={t('settings.performance.networkHint')}
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <NumberField
             id="performance-sync"
@@ -220,7 +153,6 @@ export function PerformanceSettingsPage() {
             value={form.syncConcurrency}
             min={1}
             max={32}
-            disabled={form.mode === 'auto'}
             onChange={(value) => update('syncConcurrency', value)}
           />
           <NumberField
@@ -229,37 +161,38 @@ export function PerformanceSettingsPage() {
             value={form.fetchConcurrency}
             min={1}
             max={32}
-            disabled={form.mode === 'auto'}
             onChange={(value) => update('fetchConcurrency', value)}
           />
           <NumberField
-            id="performance-search"
-            label={t('settings.performance.searchConcurrency')}
-            value={form.searchConcurrency}
+            id="performance-envelope-batch"
+            label={t('settings.performance.envelopeBatchSize')}
+            value={form.envelopeBatchSize}
             min={1}
-            max={32}
-            disabled={form.mode === 'auto'}
-            onChange={(value) => update('searchConcurrency', value)}
-          />
-          <NumberField
-            id="performance-index"
-            label={t('settings.performance.indexBatchSize')}
-            value={form.indexBatchSize}
-            min={50}
-            max={500}
-            disabled={form.mode === 'auto'}
-            onChange={(value) => update('indexBatchSize', value)}
+            max={200}
+            onChange={(value) => update('envelopeBatchSize', value)}
           />
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          {t('settings.performance.manualHint')}
+        <p className="mt-3 text-xs text-muted-foreground">
+          {t('settings.performance.envelopeBatchHint')}
         </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {t('settings.performance.memoryBudget')}: {formatBytes(memoryBudget)}
-        </p>
-        {exceedsBudget ? (
-          <InlineWarning className="mt-2">{t('settings.performance.warning')}</InlineWarning>
-        ) : null}
+      </SettingsSection>
+
+      <SettingsDivider />
+
+      <SettingsSection
+        title={t('settings.performance.local')}
+        description={t('settings.performance.localHint')}
+      >
+        <div className="grid gap-2 text-xs sm:grid-cols-2">
+          <ReadOnlyValue
+            label={t('settings.performance.searchConcurrency')}
+            value={settings.concurrency.searchConcurrency}
+          />
+          <ReadOnlyValue
+            label={t('settings.performance.indexBatchSize')}
+            value={settings.concurrency.indexBatchSize}
+          />
+        </div>
       </SettingsSection>
 
       <SettingsDivider />
@@ -296,7 +229,6 @@ function NumberField({
   value,
   min,
   max,
-  disabled,
   onChange,
 }: {
   id: string;
@@ -304,7 +236,6 @@ function NumberField({
   value: number;
   min: number;
   max: number;
-  disabled?: boolean;
   onChange: (value: number) => void;
 }) {
   return (
@@ -318,7 +249,6 @@ function NumberField({
         min={min}
         max={max}
         value={value}
-        disabled={disabled}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>

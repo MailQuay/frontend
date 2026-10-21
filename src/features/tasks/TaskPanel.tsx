@@ -162,7 +162,7 @@ export function TaskPanelBody({ tasks, ring }: { tasks: Task[]; ring: TaskRingMo
         <p className="text-sm font-semibold">{t('tasks.title')}</p>
         <Badge variant="muted">{t('tasks.running', { count: ring.runningCount })}</Badge>
       </div>
-      <div className="max-h-[17.5rem] overflow-y-auto">
+      <div className="scrollbar-none max-h-[17.5rem] overflow-y-auto">
         {tasks.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t('tasks.empty')}</p>
         ) : null}

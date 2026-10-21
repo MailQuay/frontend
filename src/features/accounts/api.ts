@@ -28,6 +28,31 @@ export async function discoverAccount(email: string): Promise<DiscoveryResult> {
   return unwrap(await api.POST('/accounts/discover', { body: { email } }));
 }
 
+export type EmclientImportPreview = Schemas['EmclientImportPreview'];
+export type EmclientImportResult = Schemas['EmclientImportResult'];
+
+export async function parseEmclientImport(file: File, masterPassword: string): Promise<EmclientImportPreview> {
+  const form = new FormData();
+  form.append('file', file);
+  if (masterPassword) form.append('masterPassword', masterPassword);
+  return unwrap(
+    await api.POST('/accounts/import/emclient', {
+      // openapi-fetch passes FormData through untouched; the generated type
+      // models the multipart body as a plain object.
+      body: form as unknown as { file: string; masterPassword?: string },
+    }),
+  );
+}
+
+export async function applyEmclientImport(importId: string, emails: string[]): Promise<EmclientImportResult> {
+  return unwrap(
+    await api.POST('/accounts/import/emclient/{importId}', {
+      params: { path: { importId } },
+      body: { emails },
+    }),
+  );
+}
+
 export async function updateAccount(id: string, body: AccountInput): Promise<Account> {
   return unwrap(await api.PATCH('/accounts/{id}', { params: { path: { id } }, body }));
 }

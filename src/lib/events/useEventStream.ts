@@ -41,11 +41,22 @@ export function useEventStream(enabled = true): void {
     let disposed = false;
     let attempts = 0;
     let reconnectTimer: number | undefined;
+    let taskTimer: number | undefined;
 
     const handle = (event: MessageEvent) => {
       const keys = INVALIDATION_BY_EVENT[event.type as EventName];
       if (!keys) return;
       for (const key of keys) {
+        if (key.length === 1 && key[0] === 'tasks') {
+          // Progress updates can arrive in bursts; coalesce them so the ring
+          // redraws at most a few times per second instead of per event.
+          if (taskTimer !== undefined) window.clearTimeout(taskTimer);
+          taskTimer = window.setTimeout(() => {
+            taskTimer = undefined;
+            void queryClient.invalidateQueries({ queryKey: key });
+          }, 300);
+          continue;
+        }
         void queryClient.invalidateQueries({ queryKey: key });
       }
     };
@@ -74,6 +85,7 @@ export function useEventStream(enabled = true): void {
     return () => {
       disposed = true;
       if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      if (taskTimer !== undefined) window.clearTimeout(taskTimer);
       if (source) {
         for (const name of EVENT_NAMES) {
           source.removeEventListener(name, handle as EventListener);

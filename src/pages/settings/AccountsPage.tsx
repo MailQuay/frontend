@@ -11,6 +11,7 @@ import {
   Server,
   Trash2,
   ShieldCheck,
+  Upload,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,7 @@ import {
   type ConnectionTestResult,
 } from '@/features/accounts/api';
 import { AccountWizardDialog } from '@/features/accounts/AccountWizard';
+import { EmclientImportDialog } from '@/features/accounts/EmclientImportDialog';
 import { fetchSettings, settingsKeys } from '@/features/settings/api';
 import { formatDate } from '@/lib/format';
 import { InlineWarning } from '@/components/layout/InsecureTransportBanner';
@@ -620,6 +622,7 @@ export function MailAccountsSettingsPage() {
   const queryClient = useQueryClient();
   const message = useErrorMessage();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
@@ -672,6 +675,7 @@ export function MailAccountsSettingsPage() {
   });
 
   const accounts = accountsQuery.data ?? [];
+  const testErrors = testResult?.errors ?? [];
 
   const invalidateAccounts = () => {
     void queryClient.invalidateQueries({ queryKey: ['accounts'] });
@@ -680,7 +684,11 @@ export function MailAccountsSettingsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-end">
+      <div className="mb-4 flex items-center justify-end gap-2">
+        <Button size="sm" variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+          <Upload className="size-4" aria-hidden="true" />
+          {t('account.import.open')}
+        </Button>
         <Button
           size="sm"
           className="gap-2"
@@ -810,6 +818,12 @@ export function MailAccountsSettingsPage() {
         onSaved={invalidateAccounts}
       />
 
+      <EmclientImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={invalidateAccounts}
+      />
+
       {editing ? (
         <AccountFormDialog
           open
@@ -860,11 +874,11 @@ export function MailAccountsSettingsPage() {
                   {testResult.smtpOk ? t('account.testOk') : t('account.testFailed')}
                 </Badge>
               </div>
-              {testResult.errors.length > 0 ? (
+              {testErrors.length > 0 ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
                   <p className="text-xs font-medium text-destructive">{t('account.testErrors')}</p>
                   <ul className="mt-1 list-inside list-disc text-xs text-destructive">
-                    {testResult.errors.map((entry, index) => (
+                    {testErrors.map((entry, index) => (
                       <li key={index}>{entry}</li>
                     ))}
                   </ul>
