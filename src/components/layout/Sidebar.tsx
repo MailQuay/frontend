@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
@@ -21,6 +22,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchMailboxTree } from '@/features/mailboxes/api';
 import { fetchTasks } from '@/features/tasks/api';
@@ -46,6 +48,11 @@ interface FavoriteEntry {
   label: string;
   icon: typeof Mail;
   count?: number;
+}
+
+interface SyncFailure {
+  label: string;
+  detail: string;
 }
 
 export function Sidebar({
@@ -186,32 +193,53 @@ export function Sidebar({
               const sent = entry.folders.find((folder) => folder.role === 'sent');
               const drafts = entry.folders.find((folder) => folder.role === 'drafts');
               const trash = entry.folders.find((folder) => folder.role === 'trash');
+              const failures: SyncFailure[] = [];
+              if (account.state === 'error') {
+                failures.push({
+                  label: t('nav.sync.accountLevel'),
+                  detail: account.lastError || t('nav.sync.unknownError'),
+                });
+              }
+              for (const folder of [...entry.folders, ...entry.other]) {
+                if (folder.syncState !== 'error') continue;
+                failures.push({
+                  label: folder.name,
+                  detail: folder.lastError || t('nav.sync.unknownError'),
+                });
+              }
               return (
                 <div key={account.id}>
-                  <button
-                    type="button"
-                    onClick={() => toggleAccount(account.id)}
-                    aria-expanded={expanded}
-                    aria-label={
-                      expanded
-                        ? t('nav.collapseAccount', { email: account.email })
-                        : t('nav.expandAccount', { email: account.email })
-                    }
+                  <div
                     className={cn(
-                      'flex min-h-7 w-full items-center gap-1.5 rounded-lg px-2.5 text-left text-[13px] hover:bg-accent hover:text-accent-foreground',
+                      'flex min-h-7 items-center rounded-lg pr-1 text-[13px] hover:bg-accent hover:text-accent-foreground',
                       expanded && 'bg-accent/60',
                     )}
                   >
-                    {expanded ? (
-                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    ) : (
-                      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    )}
-                    <span className="min-w-0 flex-1 truncate">{account.email}</span>
-                    {unread > 0 ? (
-                      <span className="text-[11px] tabular-nums text-muted-foreground">{unread}</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleAccount(account.id)}
+                      aria-expanded={expanded}
+                      aria-label={
+                        expanded
+                          ? t('nav.collapseAccount', { email: account.email })
+                          : t('nav.expandAccount', { email: account.email })
+                      }
+                      className="flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2.5 text-left"
+                    >
+                      {expanded ? (
+                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      ) : (
+                        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">{account.email}</span>
+                      {unread > 0 ? (
+                        <span className="text-[11px] tabular-nums text-muted-foreground">{unread}</span>
+                      ) : null}
+                    </button>
+                    {failures.length > 0 ? (
+                      <AccountSyncFailure email={account.email} failures={failures} />
                     ) : null}
-                  </button>
+                  </div>
                   {expanded ? (
                     <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2">
                       {inbox ? (
@@ -378,3 +406,100 @@ export function Sidebar({
     </div>
   );
 }
+
+function AccountSyncFailure({ email, failures }: { email: string; failures: SyncFailure[] }) {
+  const { t } = useTranslation();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={t('nav.sync.errorFor', { email })}
+          className="shrink-0 rounded-md p-1 text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <AlertTriangle className="size-3.5" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="right" align="start" className="w-72">
+        <p className="text-[13px] font-semibold">{t('nav.sync.errorTitle')}</p>
+        <p className="mt-0.5 break-all text-[11px] text-muted-foreground">{email}</p>
+        <SyncFailureList failures={failures} />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SyncFailureList({ failures }: { failures: SyncFailure[] }) {
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const hideTimer = useRef<number | undefined>(undefined);
+  const [bar, setBar] = useState<{ height: number; top: number } | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
+
+  const measure = useCallback(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const { clientHeight, scrollHeight, scrollTop } = list;
+    if (scrollHeight - clientHeight <= 1) {
+      setBar((previous) => (previous === null ? previous : null));
+      return;
+    }
+    const height = Math.max(20, (clientHeight / scrollHeight) * clientHeight);
+    const top = (scrollTop / (scrollHeight - clientHeight)) * (clientHeight - height);
+    setBar((previous) =>
+      previous && Math.abs(previous.height - height) < 0.5 && Math.abs(previous.top - top) < 0.5
+        ? previous
+        : { height, top },
+    );
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [measure, failures]);
+
+  useEffect(() => () => window.clearTimeout(hideTimer.current), []);
+
+  // The thumb mirrors scroll position; it is drawn by the app instead of the
+  // browser so the popover keeps a thin indicator in both themes.
+  const onScroll = () => {
+    measure();
+    setScrolling(true);
+    window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setScrolling(false), 900);
+  };
+
+  return (
+    <div className="relative mt-2">
+      <ul
+        ref={listRef}
+        className="scrollbar-none max-h-56 space-y-2 overflow-y-auto"
+        onScroll={onScroll}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {failures.map((failure, index) => (
+          <li key={`${failure.label}-${index}`} className="space-y-0.5">
+            <p className="text-[11px] font-medium">{failure.label}</p>
+            <p className="break-words text-[11px] text-muted-foreground">{failure.detail}</p>
+          </li>
+        ))}
+      </ul>
+      {bar ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute right-0 w-1 rounded-full bg-muted-foreground/40 transition-opacity duration-150',
+            hovered || scrolling ? 'opacity-100' : 'opacity-0',
+          )}
+          style={{ height: bar.height, top: bar.top }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
