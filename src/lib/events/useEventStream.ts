@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiUrl } from '@/lib/api/client';
+import { parseEventPayload, publishMailEvent } from './bus';
 
 const EVENT_NAMES = [
   'hello',
@@ -18,7 +19,9 @@ type EventName = (typeof EVENT_NAMES)[number];
 
 const INVALIDATION_BY_EVENT: Record<EventName, string[][]> = {
   hello: [],
-  'message.new': [['messages'], ['mailboxes']],
+  // New messages are inserted by the active list, which honours the
+  // prependNewMessages preference. Only the counts refresh globally.
+  'message.new': [['mailboxes']],
   'message.updated': [['messages'], ['mailboxes']],
   'message.removed': [['messages'], ['mailboxes']],
   'mailbox.updated': [['mailboxes']],
@@ -30,7 +33,8 @@ const INVALIDATION_BY_EVENT: Record<EventName, string[][]> = {
 
 /**
  * One SSE connection per document. Events invalidate server-state caches;
- * they never copy message payloads into client state.
+ * they never copy message payloads into client state. Message events are also
+ * forwarded to mounted views through the in-document bus.
  */
 export function useEventStream(enabled = true): void {
   const queryClient = useQueryClient();
@@ -40,12 +44,17 @@ export function useEventStream(enabled = true): void {
     let source: EventSource | null = null;
     let disposed = false;
     let attempts = 0;
+    let lastEventId = '';
     let reconnectTimer: number | undefined;
     let taskTimer: number | undefined;
 
     const handle = (event: MessageEvent) => {
+      if (event.lastEventId) lastEventId = event.lastEventId;
       const keys = INVALIDATION_BY_EVENT[event.type as EventName];
       if (!keys) return;
+      if (event.type.startsWith('message.')) {
+        publishMailEvent(event.type, parseEventPayload(event.data));
+      }
       for (const key of keys) {
         if (key.length === 1 && key[0] === 'tasks') {
           // Progress updates can arrive in bursts; coalesce them so the ring
@@ -63,9 +72,16 @@ export function useEventStream(enabled = true): void {
 
     const connect = () => {
       if (disposed) return;
-      source = new EventSource(apiUrl('/events'), { withCredentials: true });
+      const url = apiUrl(
+        lastEventId === '' ? '/events' : `/events?lastEventId=${encodeURIComponent(lastEventId)}`,
+      );
+      source = new EventSource(url, { withCredentials: true });
       source.onopen = () => {
+        const reconnected = attempts > 0;
         attempts = 0;
+        if (!reconnected) return;
+        void queryClient.invalidateQueries({ queryKey: ['mailboxes'] });
+        publishMailEvent('stream.reconnected', { lastEventId });
       };
       for (const name of EVENT_NAMES) {
         source.addEventListener(name, handle as EventListener);

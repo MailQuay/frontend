@@ -224,6 +224,8 @@ const en = {
     listPane: 'Message list',
     openInNewWindow: 'Open in new window',
     keyboardHint: 'Use J and K to move, Enter to open, Escape to close.',
+    newMessages_one: '{{count}} new message · click to view',
+    newMessages_other: '{{count}} new messages · click to view',
   },
   reader: {
     noSelectionTitle: 'Select a message',
@@ -785,6 +787,12 @@ const en = {
       accountDeletion: 'Account deletion',
       preserveMarked: 'Keep marked messages when an account is deleted',
       preserveMarkedHint: 'Preserved messages stay readable and searchable but leave the all-mail view.',
+      listBehavior: 'Message list',
+      listBehaviorHint: 'Controls how the unread view and live updates treat messages.',
+      removeReadImmediately: 'Remove read messages immediately',
+      removeReadImmediatelyHint: 'In the unread view, a message leaves the list as soon as it is marked read. The reader keeps showing its body.',
+      prependNewMessages: 'Insert new messages at the top',
+      prependNewMessagesHint: 'New mail joins the current list as it arrives. Turn off to show a clickable new-mail notice instead.',
       sentDrafts: 'Sent and drafts',
       sentSyncMode: 'Sent folder sync',
       sentSyncOptions: {

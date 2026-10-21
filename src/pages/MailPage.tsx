@@ -1,9 +1,11 @@
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router';
 import { EmptyState } from '@/components/common/States';
 import { MessagesWorkspace } from '@/features/message-list/MessagesWorkspace';
 import { useMessageList } from '@/features/message-list/useMessages';
+import type { ListMessagesParams, MessageSummary } from '@/features/message-list/api';
 import { fetchMailboxTree } from '@/features/mailboxes/api';
 import { SearchFiltersPanel } from '@/features/search/SearchFiltersPanel';
 import { useSearchMessages } from '@/features/search/useSearch';
@@ -61,9 +63,26 @@ const GLOBAL_VIEW_KEYS = {
   marked: { title: 'mail.markedTitle', empty: 'mail.emptyBody' },
 } as const;
 
+const UNIFIED_HIDDEN_ROLES = new Set(['sent', 'drafts', 'trash']);
+
+function inUnifiedView(message: MessageSummary): boolean {
+  return !UNIFIED_HIDDEN_ROLES.has(message.mailboxRole ?? '');
+}
+
+const GLOBAL_MATCHERS = {
+  all: inUnifiedView,
+  unread: (message: MessageSummary) => message.unread && inUnifiedView(message),
+  marked: (message: MessageSummary) => message.marked,
+} as const;
+
 function GlobalViewPage({ view }: { view: 'all' | 'unread' | 'marked' }) {
   const { t } = useTranslation();
-  const query = useMessageList({ view, limit: 50 });
+  const params = useMemo<ListMessagesParams>(() => ({ view, limit: 50 }), [view]);
+  const scope = useMemo(
+    () => ({ params, matches: GLOBAL_MATCHERS[view] }),
+    [params, view],
+  );
+  const query = useMessageList(params);
   return (
     <MessagesWorkspace
       title={t(GLOBAL_VIEW_KEYS[view].title)}
@@ -80,6 +99,8 @@ function GlobalViewPage({ view }: { view: 'all' | 'unread' | 'marked' }) {
       showAccountBadge
       emptyTitle={t('mail.emptyTitle')}
       emptyBody={t(GLOBAL_VIEW_KEYS[view].empty)}
+      scope={scope}
+      resetKey={view}
     />
   );
 }
@@ -94,12 +115,23 @@ function FolderPage({
   const mailbox = tree.data?.accounts
     .flatMap((entry) => [...entry.folders, ...entry.other])
     .find((folder) => folder.id === folderRoute.mailboxId);
-  const params = {
-    view: folderRoute.unreadOnly ? ('unread' as const) : ('mailbox' as const),
-    accountId: folderRoute.accountId || undefined,
-    mailboxId: folderRoute.mailboxId || undefined,
-    limit: 50,
-  };
+  const params = useMemo<ListMessagesParams>(
+    () => ({
+      view: folderRoute.unreadOnly ? 'unread' : 'mailbox',
+      accountId: folderRoute.accountId || undefined,
+      mailboxId: folderRoute.mailboxId || undefined,
+      limit: 50,
+    }),
+    [folderRoute.accountId, folderRoute.mailboxId, folderRoute.unreadOnly],
+  );
+  const matches = useCallback(
+    (message: MessageSummary) =>
+      message.accountId === folderRoute.accountId &&
+      message.mailboxId === folderRoute.mailboxId &&
+      (!folderRoute.unreadOnly || message.unread),
+    [folderRoute.accountId, folderRoute.mailboxId, folderRoute.unreadOnly],
+  );
+  const scope = useMemo(() => ({ params, matches }), [matches, params]);
   const query = useMessageList(params, Boolean(folderRoute.mailboxId));
   const title = mailbox
     ? `${mailbox.name}${folderRoute.unreadOnly ? ` · ${t('mail.unreadTitle')}` : ''}`
@@ -172,6 +204,8 @@ function FolderPage({
       emptyTitle={t('mail.emptyTitle')}
       emptyBody={t('mail.emptyBody')}
       readOnly={readOnly}
+      scope={scope}
+      resetKey={`${folderRoute.accountId}:${folderRoute.mailboxId}:${folderRoute.unreadOnly}`}
     />
   );
 }
@@ -196,6 +230,7 @@ function MultiMailboxPage({ view }: { view: 'sent' | 'trash' }) {
       emptyTitle={t('mail.emptyTitle')}
       emptyBody={t('mail.emptyBody')}
       readOnly={view === 'sent'}
+      resetKey={view}
     />
   );
 }
@@ -227,6 +262,7 @@ function SearchPage() {
         emptyTitle={query.enabled ? t('search.noResultsTitle') : t('search.title')}
         emptyBody={query.enabled ? t('search.noResultsBody') : t('search.emptyQuery')}
         errorTitle={t('search.unavailable')}
+        resetKey={JSON.stringify(applied)}
       />
     </div>
   );

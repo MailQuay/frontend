@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Paperclip, Star } from 'lucide-react';
 import { SenderAvatar } from '@/components/common/SenderAvatar';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,8 @@ export function MessageList({
   emptyTitle,
   emptyBody,
   errorTitle,
+  pendingCount = 0,
+  onShowPending,
 }: {
   title: string;
   messages: MessageSummary[];
@@ -45,11 +47,14 @@ export function MessageList({
   emptyTitle: string;
   emptyBody: string;
   errorTitle?: string;
+  pendingCount?: number;
+  onShowPending?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
+  const previousMessages = useRef(messages);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -64,6 +69,27 @@ export function MessageList({
     scrollRef.current?.scrollTo({ top: 0 });
     setScrollTop(0);
   }, [title]);
+
+  // Live inserts prepend rows. Keep the message at the top of the viewport at
+  // the same visual position instead of jumping to the newest mail.
+  useLayoutEffect(() => {
+    const node = scrollRef.current;
+    const previous = previousMessages.current;
+    previousMessages.current = messages;
+    if (!node || previous === messages || previous.length === 0 || messages.length === 0) return;
+    if (node.scrollTop <= 0) return;
+    const previousIndex = Math.min(
+      previous.length - 1,
+      Math.floor(node.scrollTop / ROW_HEIGHT),
+    );
+    const anchor = previous[previousIndex];
+    if (!anchor) return;
+    const nextIndex = messages.findIndex((message) => message.id === anchor.id);
+    if (nextIndex < 0 || nextIndex === previousIndex) return;
+    const adjusted = Math.max(0, node.scrollTop + (nextIndex - previousIndex) * ROW_HEIGHT);
+    node.scrollTop = adjusted;
+    setScrollTop(adjusted);
+  }, [messages]);
 
   const total = messages.length;
   const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -89,6 +115,17 @@ export function MessageList({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {pendingCount > 0 ? (
+        <div className="shrink-0 border-b px-2 py-1.5">
+          <button
+            type="button"
+            onClick={onShowPending}
+            className="w-full rounded-md bg-accent px-2 py-1 text-xs font-medium text-accent-foreground hover:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('mail.newMessages', { count: pendingCount })}
+          </button>
+        </div>
+      ) : null}
       {isLoading ? (
         <div className="space-y-0 p-2">
           {Array.from({ length: 8 }, (_, index) => (

@@ -224,6 +224,8 @@ const zhCN = {
     listPane: '邮件列表',
     openInNewWindow: '在新窗口打开',
     keyboardHint: '使用 J 和 K 移动, Enter 打开, Escape 关闭.',
+    newMessages_one: '收到 {{count}} 封新邮件 · 点击查看',
+    newMessages_other: '收到 {{count}} 封新邮件 · 点击查看',
   },
   reader: {
     noSelectionTitle: '选择一封邮件',
@@ -777,6 +779,12 @@ const zhCN = {
       accountDeletion: '账号删除',
       preserveMarked: '删除账号时保留已标记邮件',
       preserveMarkedHint: '保留的邮件仍可阅读和搜索, 但不会出现在全部收件中.',
+      listBehavior: '邮件列表',
+      listBehaviorHint: '控制未读视图与实时更新如何处理邮件.',
+      removeReadImmediately: '立即移除已读邮件',
+      removeReadImmediatelyHint: '在未读列表中, 邮件一旦标为已读就移出列表, 阅读窗格继续显示正文.',
+      prependNewMessages: '新邮件插入顶部',
+      prependNewMessagesHint: '新邮件到达时直接插入当前列表. 关闭后改为显示可点击的新邮件提示.',
       sentDrafts: '已发送与草稿',
       sentSyncMode: '已发送文件夹同步',
       sentSyncOptions: {

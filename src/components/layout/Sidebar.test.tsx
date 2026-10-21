@@ -7,7 +7,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { MailboxTree } from '@/features/mailboxes/api';
 import { fetchMailboxTree } from '@/features/mailboxes/api';
 import { fetchTasks } from '@/features/tasks/api';
-import { Sidebar } from './Sidebar';
+import { useUiStore } from '@/stores/ui';
+import { Sidebar, type MailView } from './Sidebar';
 
 vi.mock('@/features/mailboxes/api', () => ({ fetchMailboxTree: vi.fn() }));
 vi.mock('@/features/tasks/api', () => ({ fetchTasks: vi.fn() }));
@@ -50,12 +51,12 @@ function makeTree(options: {
   } as unknown as MailboxTree;
 }
 
-function renderSidebar() {
+function renderSidebar(options: { path?: string; view?: MailView } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <Sidebar currentView="all" />
+      <MemoryRouter initialEntries={[options.path ?? '/']}>
+        <Sidebar currentView={options.view ?? 'all'} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -100,5 +101,24 @@ describe('Sidebar sync failures', () => {
 
     await screen.findByText('owner@example.com');
     expect(screen.queryByRole('button', { name: /sync error for/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('Sidebar folder selection', () => {
+  it('highlights the unread filter instead of the inbox for view=unread', async () => {
+    vi.mocked(fetchMailboxTree).mockResolvedValue(makeTree({}));
+    vi.mocked(fetchTasks).mockResolvedValue([]);
+    useUiStore.setState({ expandedAccounts: { 'acc-1': true } });
+
+    renderSidebar({ path: '/accounts/acc-1/mailboxes/mb-1?view=unread', view: 'folder' });
+
+    await screen.findByText('owner@example.com');
+    const unreadLink = screen
+      .getAllByRole('link', { name: 'Unread' })
+      .find((link) => link.getAttribute('href')?.includes('view=unread'));
+    expect(unreadLink).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Inbox' })).not.toHaveAttribute('aria-current');
+
+    useUiStore.setState({ expandedAccounts: {} });
   });
 });

@@ -99,6 +99,20 @@ export function MailSettingsPage() {
       }),
   });
 
+  const saveListBehavior = useMutation({
+    mutationFn: (
+      patch: Pick<SettingsUpdate, 'removeReadImmediately' | 'prependNewMessages'>,
+    ) => updateSettings(patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(settingsKeys.detail, updated);
+    },
+    onError: (saveError) =>
+      toast(t('common.saveFailed'), {
+        description: message(saveError),
+        variant: 'destructive',
+      }),
+  });
+
   const submit = () => {
     if (form.draftPullIntervalSeconds < 10 || form.draftPullIntervalSeconds > 3600) {
       toast(t('common.saveFailed'), {
@@ -378,6 +392,41 @@ export function MailSettingsPage() {
                 </SelectItem>
               </SelectContent>
             </Select>
+          }
+        />
+      </SettingsSection>
+
+      <SettingsDivider />
+
+      <SettingsSection
+        title={t('settings.mail.listBehavior')}
+        description={t('settings.mail.listBehaviorHint')}
+      >
+        <SettingsRow
+          title={t('settings.mail.removeReadImmediately')}
+          description={t('settings.mail.removeReadImmediatelyHint')}
+          control={
+            <Switch
+              checked={query.data.removeReadImmediately}
+              onCheckedChange={(value) =>
+                saveListBehavior.mutate({ removeReadImmediately: value })
+              }
+              disabled={saveListBehavior.isPending}
+              aria-label={t('settings.mail.removeReadImmediately')}
+            />
+          }
+        />
+        <SettingsDivider />
+        <SettingsRow
+          title={t('settings.mail.prependNewMessages')}
+          description={t('settings.mail.prependNewMessagesHint')}
+          control={
+            <Switch
+              checked={query.data.prependNewMessages}
+              onCheckedChange={(value) => saveListBehavior.mutate({ prependNewMessages: value })}
+              disabled={saveListBehavior.isPending}
+              aria-label={t('settings.mail.prependNewMessages')}
+            />
           }
         />
       </SettingsSection>

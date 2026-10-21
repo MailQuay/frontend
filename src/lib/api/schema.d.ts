@@ -1448,6 +1448,8 @@ export interface components {
             timezone: string;
             /** @enum {string} */
             language: "en" | "zh-CN";
+            removeReadImmediately: boolean;
+            prependNewMessages: boolean;
             envelopeBatchSize: number;
             searchConcurrency: number;
             indexBatchSize: number;
@@ -1493,6 +1495,8 @@ export interface components {
             timezone?: string;
             /** @enum {string} */
             language?: "en" | "zh-CN";
+            removeReadImmediately?: boolean;
+            prependNewMessages?: boolean;
             syncConcurrency?: number;
             fetchConcurrency?: number;
             envelopeBatchSize?: number;
@@ -3159,7 +3163,10 @@ export interface operations {
     };
     streamEvents: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Replay cursor used when a reconnect cannot send the Last-Event-ID header. */
+                lastEventId?: string;
+            };
             header?: {
                 "Last-Event-ID"?: string;
             };

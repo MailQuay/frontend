@@ -63,7 +63,9 @@ export function Sidebar({
   onNavigate?: () => void;
 }) {
   const { t } = useTranslation();
-  const pathname = normalizePathname(useLocation().pathname);
+  const location = useLocation();
+  const pathname = normalizePathname(location.pathname);
+  const folderUnreadOnly = new URLSearchParams(location.search).get('view') === 'unread';
   const treeQuery = useQuery({
     queryKey: ['mailboxes', 'tree'],
     queryFn: fetchMailboxTree,
@@ -190,6 +192,9 @@ export function Sidebar({
               const otherExpanded = expandedOther[account.id] ?? false;
               const unread = entry.folders.reduce((sum, folder) => sum + folder.unread, 0);
               const inbox = entry.folders.find((folder) => folder.role === 'inbox');
+              const inboxPath = inbox ? `/accounts/${account.id}/mailboxes/${inbox.id}` : '';
+              const inboxActive = inboxPath !== '' && pathname === inboxPath && !folderUnreadOnly;
+              const unreadActive = inboxPath !== '' && pathname === inboxPath && folderUnreadOnly;
               const sent = entry.folders.find((folder) => folder.role === 'sent');
               const drafts = entry.folders.find((folder) => folder.role === 'drafts');
               const trash = entry.folders.find((folder) => folder.role === 'trash');
@@ -246,10 +251,10 @@ export function Sidebar({
                         <Link
                           to={`/accounts/${account.id}/mailboxes/${inbox.id}`}
                           onClick={onNavigate}
+                          aria-current={inboxActive ? 'page' : undefined}
                           className={cn(
                             'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
-                            pathname === `/accounts/${account.id}/mailboxes/${inbox.id}` &&
-                              'bg-accent font-medium text-accent-foreground',
+                            inboxActive && 'bg-accent font-medium text-accent-foreground',
                           )}
                         >
                           <Inbox className="size-3.5 text-muted-foreground" aria-hidden="true" />
@@ -265,7 +270,11 @@ export function Sidebar({
                         <Link
                           to={`/accounts/${account.id}/mailboxes/${inbox.id}?view=unread`}
                           onClick={onNavigate}
-                          className="flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground"
+                          aria-current={unreadActive ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
+                            unreadActive && 'bg-accent font-medium text-accent-foreground',
+                          )}
                         >
                           <MailOpen className="size-3.5 text-muted-foreground" aria-hidden="true" />
                           <span className="flex-1 truncate">{t('nav.unread')}</span>
