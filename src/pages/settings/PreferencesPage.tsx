@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { toast } from '@/components/ui/toast';
 import { useAuthStatus } from '@/hooks/useAuth';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
 import { updateProfile } from '@/features/auth/api';
-import { fetchSettings, settingsKeys, updateSettings } from '@/features/settings/api';
+import { fetchSettings, settingsKeys, updateSettings, type SettingsUpdate } from '@/features/settings/api';
 import {
   SettingsDivider,
   SettingsRow,
@@ -42,18 +42,19 @@ export function PreferencesSettingsPage() {
   const { t } = useTranslation();
   const auth = useAuthStatus();
   const settingsQuery = useQuery({ queryKey: settingsKeys.detail, queryFn: fetchSettings });
+  const queryClient = useQueryClient();
   const message = useErrorMessage();
   const setTheme = useUiStore((state) => state.setTheme);
-  const gravatarAvatars = useUiStore((state) => state.gravatarAvatars);
-  const setGravatarAvatars = useUiStore((state) => state.setGravatarAvatars);
-  const networkAvatars = useUiStore((state) => state.networkAvatars);
-  const setNetworkAvatars = useUiStore((state) => state.setNetworkAvatars);
   const [theme, setThemeValue] = useState<ThemePreference>('system');
   const [language, setLanguage] = useState<SupportedLanguage>('en');
   const [timezone, setTimezone] = useState('');
 
   const user = auth.data?.user;
   const settings = settingsQuery.data;
+  const networkAvatars = settings?.networkAvatars ?? true;
+  const gravatarAvatars = networkAvatars && (settings?.gravatarAvatars ?? true);
+  const bimiAvatars = networkAvatars && (settings?.bimiAvatars ?? true);
+  const googleFaviconAvatars = networkAvatars && (settings?.googleFaviconAvatars ?? true);
 
   useEffect(() => {
     if (user?.theme) setThemeValue(themeValue(user.theme));
@@ -96,6 +97,25 @@ export function PreferencesSettingsPage() {
         variant: 'destructive',
       }),
   });
+
+  const saveAvatars = useMutation({
+    mutationFn: (
+      patch: Pick<
+        SettingsUpdate,
+        'networkAvatars' | 'gravatarAvatars' | 'bimiAvatars' | 'googleFaviconAvatars'
+      >,
+    ) => updateSettings(patch),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(settingsKeys.detail, updated);
+    },
+    onError: (saveError) =>
+      toast(t('common.saveFailed'), {
+        description: message(saveError),
+        variant: 'destructive',
+      }),
+  });
+
+  const avatarSettingsDisabled = !settings || saveAvatars.isPending;
 
   const runSave = () => {
     if (timezone.trim() !== '' && !isValidTimeZone(timezone.trim())) {
@@ -169,7 +189,8 @@ export function PreferencesSettingsPage() {
             <Switch
               id="settings-network-avatars"
               checked={networkAvatars}
-              onCheckedChange={setNetworkAvatars}
+              onCheckedChange={(enabled) => saveAvatars.mutate({ networkAvatars: enabled })}
+              disabled={avatarSettingsDisabled}
             />
           }
         />
@@ -182,8 +203,38 @@ export function PreferencesSettingsPage() {
             <Switch
               id="settings-gravatar-avatars"
               checked={gravatarAvatars}
-              onCheckedChange={setGravatarAvatars}
-              disabled={!networkAvatars}
+              onCheckedChange={(enabled) => saveAvatars.mutate({ gravatarAvatars: enabled })}
+              disabled={!networkAvatars || avatarSettingsDisabled}
+            />
+          }
+        />
+        <SettingsRow
+          className="ml-2 border-l pl-4"
+          title={t('settings.preferences.bimiAvatars')}
+          description={t('settings.preferences.bimiAvatarsHint')}
+          htmlFor="settings-bimi-avatars"
+          control={
+            <Switch
+              id="settings-bimi-avatars"
+              checked={bimiAvatars}
+              onCheckedChange={(enabled) => saveAvatars.mutate({ bimiAvatars: enabled })}
+              disabled={!networkAvatars || avatarSettingsDisabled}
+            />
+          }
+        />
+        <SettingsRow
+          className="ml-2 border-l pl-4"
+          title={t('settings.preferences.googleFaviconAvatars')}
+          description={t('settings.preferences.googleFaviconAvatarsHint')}
+          htmlFor="settings-google-favicon-avatars"
+          control={
+            <Switch
+              id="settings-google-favicon-avatars"
+              checked={googleFaviconAvatars}
+              onCheckedChange={(enabled) =>
+                saveAvatars.mutate({ googleFaviconAvatars: enabled })
+              }
+              disabled={!networkAvatars || avatarSettingsDisabled}
             />
           }
         />

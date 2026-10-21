@@ -40,7 +40,7 @@ export function SettingsRow({
   className?: string;
 }) {
   return (
-    <div className={cn('flex flex-wrap items-start justify-between gap-4 py-1.5', className)}>
+    <div className={cn('flex flex-wrap items-center justify-between gap-4 py-1.5', className)}>
       <div className="min-w-48 flex-1">
         {htmlFor ? (
           <label htmlFor={htmlFor} className="text-[13px] font-medium">

@@ -704,7 +704,7 @@ export function MailAccountsSettingsPage() {
         <ul className="divide-y rounded-xl border">
           {accounts.map((account) => (
             <li key={account.id} className="px-3.5 py-3">
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-[13px] font-medium">{account.name}</p>

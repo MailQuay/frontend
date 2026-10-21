@@ -691,10 +691,16 @@ const en = {
       languageHint: 'The interface and the backend language preference are updated together.',
       networkAvatars: 'Network avatars',
       networkAvatarsHint:
-        'Load sender avatars from Gravatar first, then fall back to the sender domain favicon through the backend. Turn off to stop all external avatar requests.',
-      gravatarAvatars: 'Gravatar avatars',
+        'Let the backend load sender avatars from Gravatar, BIMI, then the sender domain favicon. Turn off to block every avatar request on the server.',
+      gravatarAvatars: 'Gravatar',
       gravatarAvatarsHint:
-        'Tried first while network avatars are enabled. Turn off to use only the sender domain favicon.',
+        'Tried first when network avatars are enabled. Turn off to block Gravatar requests on the server.',
+      bimiAvatars: 'BIMI',
+      bimiAvatarsHint:
+        'Tried after Gravatar and before the domain favicon. Turn off to block BIMI lookups on the server.',
+      googleFaviconAvatars: 'Google favicon',
+      googleFaviconAvatarsHint:
+        'Used after Gravatar and BIMI. Turn off to block favicon requests on the server.',
       timezoneHint: 'Used to display dates and to convert scheduled sending times to UTC.',
       timezonePlaceholder: 'e.g. Europe/Berlin',
       timezoneFormat: 'IANA time zone',

@@ -687,9 +687,14 @@ const zhCN = {
       languageHint: '界面语言和后端语言偏好会同时更新.',
       networkAvatars: '启用网络头像',
       networkAvatarsHint:
-        '依次从 Gravatar 和发信域名 favicon 加载发信人头像, 域名图标由后端代理请求. 关闭后不发起任何外部头像请求.',
+        '由后端依次从 Gravatar, BIMI 和 Google favicon 获取发信人头像. 关闭后服务端不再发起任何头像请求.',
       gravatarAvatars: 'Gravatar 头像',
-      gravatarAvatarsHint: '启用网络头像时优先尝试. 关闭后只使用发信域名 favicon.',
+      gravatarAvatarsHint: '启用网络头像时优先尝试. 关闭后服务端不再请求 Gravatar.',
+      bimiAvatars: 'BIMI 头像',
+      bimiAvatarsHint: 'Gravatar 没有结果时尝试, 优先于 Google favicon. 关闭后服务端不再查询 BIMI.',
+      googleFaviconAvatars: 'Google favicon',
+      googleFaviconAvatarsHint:
+        'Gravatar 和 BIMI 都没有结果时使用. 关闭后服务端不再请求 favicon.',
       timezoneHint: '用于显示日期, 并把定时发送时间转换为 UTC.',
       timezonePlaceholder: '例如 Europe/Berlin',
       timezoneFormat: 'IANA 时区',

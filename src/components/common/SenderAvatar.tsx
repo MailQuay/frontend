@@ -1,33 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { fetchSettings, settingsKeys } from '@/features/settings/api';
 import { initials } from '@/lib/format';
-import { senderFaviconUrl } from '@/lib/mail/favicon';
-import { gravatarUrl } from '@/lib/mail/gravatar';
+import { avatarUrl } from '@/lib/mail/avatar';
 import { cn } from '@/lib/utils';
-import { useUiStore } from '@/stores/ui';
-
-function useGravatarUrl(
-  email: string | null | undefined,
-  enabled: boolean,
-): string | null | undefined {
-  const [resolved, setResolved] = useState<{ key: string; url: string | null } | null>(null);
-  const key = `${email ?? ''}\u0000${enabled ? '1' : '0'}`;
-
-  useEffect(() => {
-    if (!enabled || !email) return;
-
-    let cancelled = false;
-    void gravatarUrl(email).then((next) => {
-      if (!cancelled) setResolved({ key, url: next });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [email, enabled, key]);
-
-  return resolved?.key === key ? resolved.url : undefined;
-}
 
 export function SenderAvatar({
   email,
@@ -40,23 +16,17 @@ export function SenderAvatar({
   fallback?: string | null;
   className?: string;
 }) {
-  const networkAvatars = useUiStore((state) => state.networkAvatars);
-  const gravatarAvatars = useUiStore((state) => state.gravatarAvatars);
-  const [failedGravatar, setFailedGravatar] = useState<string | null>(null);
-
-  const gravatarEnabled = networkAvatars && gravatarAvatars;
-  const gravatar = useGravatarUrl(email, gravatarEnabled);
-  const favicon = networkAvatars && email ? senderFaviconUrl(email) : null;
-  const sourceKey = `${email ?? ''}\u0000${networkAvatars ? '1' : '0'}${gravatarAvatars ? '1' : '0'}`;
-  const gravatarActive = gravatarEnabled && failedGravatar !== sourceKey;
-  let src: string | null = null;
-  if (networkAvatars) {
-    if (!gravatarActive) {
-      src = favicon;
-    } else if (gravatar !== undefined) {
-      src = gravatar ?? favicon;
-    }
-  }
+  const settingsQuery = useQuery({
+    queryKey: settingsKeys.detail,
+    queryFn: fetchSettings,
+    staleTime: 60_000,
+  });
+  const settings = settingsQuery.data;
+  const networkAvatars = settings?.networkAvatars === true;
+  const gravatar = networkAvatars && settings?.gravatarAvatars === true;
+  const bimi = networkAvatars && settings?.bimiAvatars === true;
+  const favicon = networkAvatars && settings?.googleFaviconAvatars === true;
+  const src = email ? avatarUrl(email, { gravatar, bimi, favicon }) : null;
 
   return (
     <Avatar className={cn('border', className)}>
@@ -66,9 +36,7 @@ export function SenderAvatar({
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"
-          onLoadingStatusChange={(status) => {
-            if (status === 'error' && gravatarActive) setFailedGravatar(sourceKey);
-          }}
+          crossOrigin="use-credentials"
         />
       ) : null}
       <AvatarFallback>{initials(name || email || fallback || '?')}</AvatarFallback>
