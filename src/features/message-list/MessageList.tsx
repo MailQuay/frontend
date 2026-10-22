@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Paperclip, Star } from 'lucide-react';
+import { Loader2, Paperclip, Star } from 'lucide-react';
 import { SenderAvatar } from '@/components/common/SenderAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/common/States';
 import { formatListDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -127,17 +126,12 @@ export function MessageList({
         </div>
       ) : null}
       {isLoading ? (
-        <div className="space-y-0 p-2">
-          {Array.from({ length: 8 }, (_, index) => (
-            <div key={index} className="flex items-start gap-3 px-2 py-3">
-              <Skeleton className="size-8 rounded-full" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3 w-1/3" />
-                <Skeleton className="h-3 w-4/5" />
-                <Skeleton className="h-2.5 w-2/3" />
-              </div>
-            </div>
-          ))}
+        <div
+          role="status"
+          className="flex min-h-0 flex-1 items-center justify-center"
+        >
+          <Loader2 className="size-5 animate-spin text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">{t('common.loading')}</span>
         </div>
       ) : isError ? (
         <ErrorState error={error} onRetry={onRetry} title={errorTitle ?? t('mail.errorTitle')} />
