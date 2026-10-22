@@ -67,7 +67,7 @@ describe('task aggregation', () => {
     expect(taskColorToken('outbox_send', false)).toBe('--task-send');
     expect(taskColorToken('mark_cache', false)).toBe('--task-fetch');
     expect(taskColorToken('search_index', false)).toBe('--task-index');
-    expect(taskColorToken('delete_queue', false)).toBe('--task-muted');
+    expect(taskColorToken('account_purge', false)).toBe('--task-muted');
     expect(taskColorToken('unknown_type', false)).toBe('--task-muted');
     expect(taskColorToken('initial_sync', true)).toBe('--task-error');
   });

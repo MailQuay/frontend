@@ -52,7 +52,6 @@ const TASK_TOKEN_BY_TYPE: Record<string, TaskColorToken> = {
   search_index: '--task-index',
   index: '--task-index',
   account_purge: '--task-muted',
-  delete_queue: '--task-muted',
   cleanup: '--task-muted',
 };
 

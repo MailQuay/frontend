@@ -36,8 +36,6 @@ interface MailFormState {
   draftPushDelaySeconds: number;
   composeWindowMode: NonNullable<SettingsUpdate['composeWindowMode']>;
   sendRetryLimit: number;
-  deleteMode: NonNullable<SettingsUpdate['deleteMode']>;
-  deleteQueueDays: number;
   signaturePosition: NonNullable<SettingsUpdate['signaturePosition']>;
 }
 
@@ -51,8 +49,6 @@ const EMPTY: MailFormState = {
   draftPushDelaySeconds: 30,
   composeWindowMode: 'in_app',
   sendRetryLimit: 3,
-  deleteMode: 'provider_auto',
-  deleteQueueDays: 30,
   signaturePosition: 'above_quote',
 };
 
@@ -76,8 +72,6 @@ export function MailSettingsPage() {
       draftPushDelaySeconds: settings.draftPushDelaySeconds,
       composeWindowMode: settings.composeWindowMode,
       sendRetryLimit: settings.sendRetryLimit,
-      deleteMode: settings.deleteMode,
-      deleteQueueDays: settings.deleteQueueDays,
       signaturePosition: settings.signaturePosition,
     });
   }, [query.data]);
@@ -135,13 +129,6 @@ export function MailSettingsPage() {
       });
       return;
     }
-    if (form.deleteQueueDays < 1 || form.deleteQueueDays > 365) {
-      toast(t('common.saveFailed'), {
-        description: `${t('settings.mail.deleteQueueDays')}: 1–365`,
-        variant: 'destructive',
-      });
-      return;
-    }
     save.mutate({
       defaultInitialSyncRange: form.defaultInitialSyncRange,
       defaultDownloadScope: form.defaultDownloadScope,
@@ -152,8 +139,6 @@ export function MailSettingsPage() {
       draftPushDelaySeconds: form.draftPushDelaySeconds,
       composeWindowMode: form.composeWindowMode,
       sendRetryLimit: form.sendRetryLimit,
-      deleteMode: form.deleteMode,
-      deleteQueueDays: form.deleteQueueDays,
       signaturePosition: form.signaturePosition,
     });
   };
@@ -426,55 +411,6 @@ export function MailSettingsPage() {
               onCheckedChange={(value) => saveListBehavior.mutate({ prependNewMessages: value })}
               disabled={saveListBehavior.isPending}
               aria-label={t('settings.mail.prependNewMessages')}
-            />
-          }
-        />
-      </SettingsSection>
-
-      <SettingsDivider />
-
-      <SettingsSection title={t('settings.mail.deletion')}>
-        <SettingsRow
-          title={t('settings.mail.deleteMode')}
-          htmlFor="mail-delete-mode"
-          control={
-            <Select
-              value={form.deleteMode}
-              onValueChange={(value) =>
-                update(
-                  'deleteMode',
-                  value === 'local_queue' ? 'local_queue' : 'provider_auto',
-                )
-              }
-            >
-              <SelectTrigger id="mail-delete-mode" className="w-72">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="provider_auto">
-                  {t('settings.mail.deleteModes.provider_auto')}
-                </SelectItem>
-                <SelectItem value="local_queue">
-                  {t('settings.mail.deleteModes.local_queue')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          }
-        />
-        <SettingsDivider />
-        <SettingsRow
-          title={t('settings.mail.deleteQueueDays')}
-          description={t('settings.mail.deleteQueueHint')}
-          htmlFor="mail-delete-days"
-          control={
-            <Input
-              id="mail-delete-days"
-              type="number"
-              min={1}
-              max={365}
-              value={form.deleteQueueDays}
-              onChange={(event) => update('deleteQueueDays', Number(event.target.value))}
-              className="w-24"
             />
           }
         />

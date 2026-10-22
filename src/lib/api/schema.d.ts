@@ -608,22 +608,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/delete-queue": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listDeleteQueue"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/threads/{id}": {
         parameters: {
             query?: never;
@@ -1310,19 +1294,6 @@ export interface components {
             archives: components["schemas"]["ArchiveEntry"][];
             nextCursor?: string;
         };
-        DeleteQueueItem: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            messageId: string;
-            /** Format: uuid */
-            accountId: string;
-            /** Format: uuid */
-            mailboxId: string;
-            /** Format: date-time */
-            deleteAfter: string;
-            status: string;
-        };
         Draft: {
             /** Format: uuid */
             id: string;
@@ -1448,9 +1419,6 @@ export interface components {
             composeWindowMode: "in_app" | "new_window";
             sendRetryLimit: number;
             /** @enum {string} */
-            deleteMode: "provider_auto" | "local_queue";
-            deleteQueueDays: number;
-            /** @enum {string} */
             signaturePosition: "above_quote" | "below_quote";
             networkAvatars: boolean;
             gravatarAvatars: boolean;
@@ -1494,9 +1462,6 @@ export interface components {
             /** @enum {string} */
             composeWindowMode?: "in_app" | "new_window";
             sendRetryLimit?: number;
-            /** @enum {string} */
-            deleteMode?: "provider_auto" | "local_queue";
-            deleteQueueDays?: number;
             /** @enum {string} */
             signaturePosition?: "above_quote" | "below_quote";
             networkAvatars?: boolean;
@@ -2303,7 +2268,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Message moved to Trash or queued for deletion. */
+            /** @description Message moved to Trash */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2707,29 +2672,6 @@ export interface operations {
                 };
                 content?: never;
             };
-        };
-    };
-    listDeleteQueue: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Pending permanent deletions. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["DeleteQueueItem"][];
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
         };
     };
     getThread: {
