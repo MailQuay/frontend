@@ -1017,9 +1017,18 @@ export interface components {
             /** @enum {string} */
             state: "connected" | "disconnected" | "syncing" | "error";
             lastError?: string;
+            autoDetectSpecialFolders?: boolean;
+            specialFolders?: components["schemas"]["SpecialFolders"];
             /** Format: date-time */
             createdAt: string;
             identities?: components["schemas"]["Identity"][];
+        };
+        SpecialFolders: {
+            sent?: string;
+            drafts?: string;
+            trash?: string;
+            junk?: string;
+            archive?: string;
         };
         AccountInput: {
             name: string;
@@ -1056,6 +1065,8 @@ export interface components {
             sentCopyMode?: "auto" | "append" | "none";
             pop3LeaveOnServer?: boolean;
             pop3DeleteOnServer?: boolean;
+            autoDetectSpecialFolders?: boolean;
+            specialFolders?: components["schemas"]["SpecialFolders"];
         };
         DiscoveryRequest: {
             /** Format: email */

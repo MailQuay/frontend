@@ -52,6 +52,12 @@ import {
   type ConnectionTestResult,
 } from '@/features/accounts/api';
 import { AccountWizardDialog } from '@/features/accounts/AccountWizard';
+import {
+  fetchMailboxTree,
+  findAccountEntry,
+  mailboxKeys,
+  type Mailbox,
+} from '@/features/mailboxes/api';
 import { EmclientImportDialog } from '@/features/accounts/EmclientImportDialog';
 import { fetchSettings, settingsKeys } from '@/features/settings/api';
 import { formatDate } from '@/lib/format';
@@ -59,6 +65,16 @@ import { InlineWarning } from '@/components/layout/InsecureTransportBanner';
 
 const ADDRESS_PATTERN = /^(?:\[[0-9a-fA-F:]+\]|[^\s:]+):\d{1,5}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const SPECIAL_FOLDER_FIELDS = [
+  { role: 'sent', labelKey: 'account.specialFolderRoles.sent' },
+  { role: 'drafts', labelKey: 'account.specialFolderRoles.drafts' },
+  { role: 'trash', labelKey: 'account.specialFolderRoles.trash' },
+  { role: 'junk', labelKey: 'account.specialFolderRoles.junk' },
+  { role: 'archive', labelKey: 'account.specialFolderRoles.archive' },
+] as const;
+
+type SpecialFolderRole = (typeof SPECIAL_FOLDER_FIELDS)[number]['role'];
 
 interface AccountFormState {
   name: string;
@@ -84,6 +100,8 @@ interface AccountFormState {
   sentCopyMode: NonNullable<AccountInput['sentCopyMode']>;
   pop3LeaveOnServer: boolean;
   pop3DeleteOnServer: boolean;
+  autoDetectSpecialFolders: boolean;
+  specialFolders: Record<SpecialFolderRole, string>;
 }
 
 function formFromAccount(account: Account): AccountFormState {
@@ -111,6 +129,14 @@ function formFromAccount(account: Account): AccountFormState {
     sentCopyMode: account.sentCopyMode,
     pop3LeaveOnServer: account.pop3LeaveOnServer ?? true,
     pop3DeleteOnServer: account.pop3DeleteOnServer ?? false,
+    autoDetectSpecialFolders: account.autoDetectSpecialFolders ?? true,
+    specialFolders: {
+      sent: account.specialFolders?.sent ?? '',
+      drafts: account.specialFolders?.drafts ?? '',
+      trash: account.specialFolders?.trash ?? '',
+      junk: account.specialFolders?.junk ?? '',
+      archive: account.specialFolders?.archive ?? '',
+    },
   };
 }
 
@@ -134,6 +160,21 @@ function AccountFormDialog({
     setForm(formFromAccount(account));
   }, [account, open]);
 
+  const treeQuery = useQuery({
+    queryKey: mailboxKeys.tree,
+    queryFn: fetchMailboxTree,
+    enabled: open,
+  });
+  const treeEntry = findAccountEntry(treeQuery.data, account.id);
+  const accountFolders: Mailbox[] = treeEntry
+    ? [...treeEntry.folders, ...treeEntry.other].filter((folder) => !folder.localOnly)
+    : [];
+  const detectedPath = (role: SpecialFolderRole) =>
+    accountFolders.find((folder) => folder.role === role)?.path ?? '';
+  const unresolved = SPECIAL_FOLDER_FIELDS.map((field) => field.role).filter(
+    (role) => detectedPath(role) === '',
+  );
+
   const mutation = useMutation({
     mutationFn: (input: AccountInput) => updateAccount(account.id, input),
     onSuccess: (saved) => {
@@ -150,6 +191,22 @@ function AccountFormDialog({
 
   const update = <K extends keyof AccountFormState>(key: K, value: AccountFormState[K]) =>
     setForm((previous) => ({ ...previous, [key]: value }));
+
+  const updateSpecialFolder = (role: SpecialFolderRole, path: string) =>
+    setForm((previous) => ({
+      ...previous,
+      specialFolders: { ...previous.specialFolders, [role]: path },
+    }));
+
+  const toggleAutoDetect = (value: boolean) =>
+    setForm((previous) => {
+      if (value) return { ...previous, autoDetectSpecialFolders: true };
+      const specialFolders = { ...previous.specialFolders };
+      for (const field of SPECIAL_FOLDER_FIELDS) {
+        if (!specialFolders[field.role]) specialFolders[field.role] = detectedPath(field.role);
+      }
+      return { ...previous, autoDetectSpecialFolders: false, specialFolders };
+    });
 
   const submit = () => {
     const errors: string[] = [];
@@ -196,6 +253,16 @@ function AccountFormDialog({
       sentCopyMode: form.sentCopyMode,
       pop3LeaveOnServer: form.receiveProtocol === 'pop3' ? form.pop3LeaveOnServer : undefined,
       pop3DeleteOnServer: form.receiveProtocol === 'pop3' ? form.pop3DeleteOnServer : undefined,
+      autoDetectSpecialFolders: form.autoDetectSpecialFolders,
+      specialFolders: form.autoDetectSpecialFolders
+        ? {}
+        : {
+            sent: form.specialFolders.sent || undefined,
+            drafts: form.specialFolders.drafts || undefined,
+            trash: form.specialFolders.trash || undefined,
+            junk: form.specialFolders.junk || undefined,
+            archive: form.specialFolders.archive || undefined,
+          },
     };
     if (form.authType === 'oauth2') {
       input.oauthProvider = form.oauthProvider;
@@ -598,6 +665,75 @@ function AccountFormDialog({
               </div>
             </div>
           </div>
+
+          {form.receiveProtocol === 'imap' ? (
+            <div className="space-y-2 rounded-lg border p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{t('account.specialFoldersTitle')}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t('account.specialFoldersHint')}
+                  </p>
+                </div>
+                <label className="flex shrink-0 items-center gap-2 text-xs">
+                  {t('account.autoDetectSpecialFolders')}
+                  <Switch
+                    checked={form.autoDetectSpecialFolders}
+                    onCheckedChange={toggleAutoDetect}
+                  />
+                </label>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {SPECIAL_FOLDER_FIELDS.map((field) => {
+                  const value = form.autoDetectSpecialFolders
+                    ? detectedPath(field.role)
+                    : form.specialFolders[field.role];
+                  const inputId = `account-special-${field.role}`;
+                  return (
+                    <div className="space-y-1.5" key={field.role}>
+                      <Label htmlFor={inputId}>{t(field.labelKey)}</Label>
+                      {form.autoDetectSpecialFolders ? (
+                        <Input
+                          id={inputId}
+                          value={value || t('account.specialFolderUnresolved')}
+                          disabled
+                          readOnly
+                        />
+                      ) : (
+                        <Select
+                          value={value || 'none'}
+                          onValueChange={(next) =>
+                            updateSpecialFolder(field.role, next === 'none' ? '' : next)
+                          }
+                        >
+                          <SelectTrigger id={inputId}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">{t('account.specialFolderNone')}</SelectItem>
+                            {accountFolders.map((folder) => (
+                              <SelectItem key={folder.id} value={folder.path}>
+                                {folder.path}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {form.autoDetectSpecialFolders &&
+              unresolved.some((role) => role === 'trash' || role === 'sent' || role === 'drafts') ? (
+                <p
+                  className="text-[11px] text-amber-600 dark:text-amber-400"
+                  role="status"
+                >
+                  {t('account.specialFolderUnresolvedHint')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
         </div>
 

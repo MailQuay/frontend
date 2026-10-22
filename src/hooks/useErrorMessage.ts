@@ -8,6 +8,7 @@ export function useErrorMessage(): (error: unknown) => string {
     (error: unknown) => {
       if (isApiError(error)) {
         if (error.code === 'search_unavailable') return t('errors.searchUnavailable');
+        if (error.code === 'delete_target_missing') return t('errors.deleteTargetMissing');
         switch (error.status) {
           case 401:
             return t('errors.unauthorized');

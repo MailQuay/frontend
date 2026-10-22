@@ -39,7 +39,7 @@ The shell uses a fixed left rail with a content-area top bar:
 - Desktop rail is resizable (default `232px`, minimum `180px`): the global views are always listed, followed by the collapsed mailbox account list; the bottom shows only sync status.
 - Global views are All mail, Unread, Sent, Sending, Drafts, Trash, Marked, and Local archive. Marked is hidden when empty. The global section has no Other.
 - Settings open only from the avatar menu; the rail has no settings entry.
-- Each mailbox account row is collapsed by default. Expanding it shows Inbox, Unread, Sent, Drafts, and Trash, with its own collapsed "Other" at the bottom. Junk, Archive, labels, and custom folders live there.
+- Each mailbox account row is collapsed by default. Expanding it shows Inbox, Unread, Sent, Drafts, Trash, and Junk, with its own collapsed "Other" at the bottom. Archive, labels, and custom folders live there.
 - Reply, forward, mark, local archive, and delete live in the reader toolbar, not the global top bar. Reply-all stays in the reply menu.
 - The task ring is a `36px` multi-segment progress ring. Each task type uses a color token, takes an arc proportional to its workload, and fills that arc by completion percentage. With no work, the ring is white.
 - Hovering or focusing the ring opens a downward task panel listing running and queued jobs with account, percentage, and counts. Colors are never the only signal.

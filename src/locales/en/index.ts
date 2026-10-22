@@ -602,6 +602,21 @@ const en = {
       append: 'Append with IMAP',
       none: 'Do not copy',
     },
+    specialFoldersTitle: 'Special folders',
+    specialFoldersHint:
+      'MailQuay uses the server special-use flags first and the conventional folder names second. Pick a remote folder for anything it cannot detect.',
+    autoDetectSpecialFolders: 'Detect special folders',
+    specialFolderUnresolved: 'Not detected',
+    specialFolderNone: 'Not used',
+    specialFolderUnresolvedHint:
+      'Some special folders were not detected. Turn off detection to pick a remote folder for each role.',
+    specialFolderRoles: {
+      sent: 'Sent',
+      drafts: 'Drafts',
+      trash: 'Trash',
+      junk: 'Junk',
+      archive: 'Archive',
+    },
     formErrors: {
       name: 'Enter a display name.',
       email: 'Enter a valid email address.',
@@ -972,6 +987,7 @@ const en = {
     tooManyRequests: 'Too many attempts. Wait a moment and try again.',
     serviceUnavailable: 'A required service is unavailable. Try again later.',
     searchUnavailable: 'Search is unavailable. Mail remains accessible while the index is rebuilt.',
+    deleteTargetMissing: 'This account has no Trash folder. Pick one in the account special folders and try again.',
     bodyUnavailable: 'The message body could not be fetched from the server.',
     generic: 'The request failed.',
   },

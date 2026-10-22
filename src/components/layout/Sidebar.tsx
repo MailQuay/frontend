@@ -18,6 +18,7 @@ import {
   CloudOff,
   RefreshCw,
   AlertTriangle,
+  ShieldAlert,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -198,6 +199,12 @@ export function Sidebar({
               const sent = entry.folders.find((folder) => folder.role === 'sent');
               const drafts = entry.folders.find((folder) => folder.role === 'drafts');
               const trash = entry.folders.find((folder) => folder.role === 'trash');
+              const junk = [...entry.folders, ...entry.other].find(
+                (folder) => folder.role === 'junk',
+              );
+              const otherFolders = entry.other.filter((folder) => folder.role !== 'junk');
+              const folderActive = (id: string) =>
+                pathname === `/accounts/${account.id}/mailboxes/${id}` && !folderUnreadOnly;
               const failures: SyncFailure[] = [];
               if (account.state === 'error') {
                 failures.push({
@@ -284,7 +291,11 @@ export function Sidebar({
                         <Link
                           to={`/accounts/${account.id}/mailboxes/${sent.id}`}
                           onClick={onNavigate}
-                          className="flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground"
+                          aria-current={folderActive(sent.id) ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
+                            folderActive(sent.id) && 'bg-accent font-medium text-accent-foreground',
+                          )}
                         >
                           <Send className="size-3.5 text-muted-foreground" aria-hidden="true" />
                           <span className="flex-1 truncate">{t('nav.sent')}</span>
@@ -294,7 +305,11 @@ export function Sidebar({
                         <Link
                           to={`/accounts/${account.id}/mailboxes/${drafts.id}`}
                           onClick={onNavigate}
-                          className="flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground"
+                          aria-current={folderActive(drafts.id) ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
+                            folderActive(drafts.id) && 'bg-accent font-medium text-accent-foreground',
+                          )}
                         >
                           <FileText className="size-3.5 text-muted-foreground" aria-hidden="true" />
                           <span className="flex-1 truncate">{t('nav.drafts')}</span>
@@ -304,10 +319,41 @@ export function Sidebar({
                         <Link
                           to={`/accounts/${account.id}/mailboxes/${trash.id}`}
                           onClick={onNavigate}
-                          className="flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground"
+                          aria-current={folderActive(trash.id) ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
+                            folderActive(trash.id) && 'bg-accent font-medium text-accent-foreground',
+                          )}
                         >
                           <Trash2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
                           <span className="flex-1 truncate">{t('nav.trash')}</span>
+                          {trash.unread > 0 ? (
+                            <span className="text-[11px] tabular-nums text-muted-foreground">
+                              {trash.unread}
+                            </span>
+                          ) : null}
+                        </Link>
+                      ) : null}
+                      {junk ? (
+                        <Link
+                          to={`/accounts/${account.id}/mailboxes/${junk.id}`}
+                          onClick={onNavigate}
+                          aria-current={folderActive(junk.id) ? 'page' : undefined}
+                          className={cn(
+                            'flex min-h-7 items-center gap-2 rounded-md px-2 text-[13px] hover:bg-accent hover:text-accent-foreground',
+                            folderActive(junk.id) && 'bg-accent font-medium text-accent-foreground',
+                          )}
+                        >
+                          <ShieldAlert
+                            className="size-3.5 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span className="flex-1 truncate">{t('nav.junk')}</span>
+                          {junk.unread > 0 ? (
+                            <span className="text-[11px] tabular-nums text-muted-foreground">
+                              {junk.unread}
+                            </span>
+                          ) : null}
                         </Link>
                       ) : null}
                       <Collapsible open={otherExpanded} onOpenChange={() => toggleOther(account.id)}>
@@ -328,19 +374,19 @@ export function Sidebar({
                               <ChevronRight className="size-3.5" aria-hidden="true" />
                             )}
                             <span className="flex-1 truncate text-left">{t('nav.other')}</span>
-                            {entry.other.length > 0 ? (
-                              <Badge variant="muted">{entry.other.length}</Badge>
+                            {otherFolders.length > 0 ? (
+                              <Badge variant="muted">{otherFolders.length}</Badge>
                             ) : null}
                           </button>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
                           <div className="ml-2 space-y-0.5 border-l pl-2">
-                            {entry.other.length === 0 ? (
+                            {otherFolders.length === 0 ? (
                               <p className="px-2 py-1 text-xs text-muted-foreground">
                                 {t('common.none')}
                               </p>
                             ) : (
-                              entry.other.map((folder) => (
+                              otherFolders.map((folder) => (
                                 <Link
                                   key={folder.id}
                                   to={`/accounts/${account.id}/mailboxes/${folder.id}`}
