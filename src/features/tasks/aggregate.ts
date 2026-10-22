@@ -16,26 +16,23 @@ export interface TaskSegment {
   type: string;
   status: TaskStatus;
   colorToken: TaskColorToken;
-  weight: number;
-  fraction: number;
   done: number;
   total: number;
   unit: string;
   accountId?: string;
+  message?: string;
   error?: string;
   pending: boolean;
   failed: boolean;
   completed: boolean;
+  percent: number;
 }
 
-export interface TaskRingModel {
+export interface TaskQueue {
   segments: TaskSegment[];
-  totalDone: number;
-  totalTotal: number;
   runningCount: number;
-  activeCount: number;
   failedCount: number;
-  percent: number;
+  activeCount: number;
 }
 
 const TASK_TOKEN_BY_TYPE: Record<string, TaskColorToken> = {
@@ -55,28 +52,31 @@ const TASK_TOKEN_BY_TYPE: Record<string, TaskColorToken> = {
   cleanup: '--task-muted',
 };
 
+const STATUS_ORDER: Record<string, number> = {
+  running: 0,
+  pending: 1,
+  failed: 2,
+  completed: 3,
+};
+
 export function taskColorToken(type: string, failed: boolean): TaskColorToken {
   if (failed) return '--task-error';
   return TASK_TOKEN_BY_TYPE[type] ?? '--task-muted';
 }
 
-export function buildTaskRing(tasks: Task[]): TaskRingModel {
+// buildTaskQueue sorts tasks for the task center: running work first, then
+// queued work, then failures waiting on the user, then finished work.
+export function buildTaskQueue(tasks: Task[]): TaskQueue {
   const segments: TaskSegment[] = [];
-  let totalDone = 0;
-  let totalTotal = 0;
   let runningCount = 0;
   let failedCount = 0;
 
   for (const task of tasks) {
     if (task.status === 'cancelled') continue;
     const failed = task.status === 'failed';
-    const pending = task.status === 'pending';
     const completed = task.status === 'completed';
     const total = Math.max(0, task.total ?? 0);
     const done = Math.max(0, Math.min(task.done ?? 0, total || Number.MAX_SAFE_INTEGER));
-    const weight = total > 0 ? total : 1;
-    totalDone += done;
-    totalTotal += total;
     if (task.status === 'running') runningCount += 1;
     if (failed) failedCount += 1;
     segments.push({
@@ -84,65 +84,30 @@ export function buildTaskRing(tasks: Task[]): TaskRingModel {
       type: task.type,
       status: task.status,
       colorToken: taskColorToken(task.type, failed),
-      weight,
-      fraction: failed ? 1 : total > 0 ? done / total : completed ? 1 : 0,
       done,
       total,
       unit: task.unit,
       accountId: task.accountId,
+      message: task.message,
       error: task.error,
-      pending,
+      pending: task.status === 'pending',
       failed,
       completed,
+      percent:
+        total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : completed ? 100 : 0,
     });
   }
 
   segments.sort((left, right) => {
-    if (left.failed !== right.failed) return left.failed ? -1 : 1;
-    return 0;
+    const order = (STATUS_ORDER[left.status] ?? 9) - (STATUS_ORDER[right.status] ?? 9);
+    if (order !== 0) return order;
+    return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
   });
 
   return {
     segments,
-    totalDone,
-    totalTotal,
     runningCount,
-    activeCount: segments.length,
     failedCount,
-    percent:
-      totalTotal > 0
-        ? Math.max(0, Math.min(100, Math.round((totalDone / totalTotal) * 100)))
-        : failedCount > 0
-          ? 100
-          : segments.length > 0
-            ? Math.round(
-                (segments.reduce((sum, segment) => sum + segment.fraction * segment.weight, 0) /
-                  segments.reduce((sum, segment) => sum + segment.weight, 0)) *
-                  100,
-              )
-            : 0,
+    activeCount: segments.filter((segment) => !segment.completed && !segment.failed).length,
   };
-}
-
-/**
- * Geometry for the 36px ring: each task owns an arc proportional to its workload.
- * A failed task always receives a full red arc, is sorted first, and is pinned to the top.
- */
-export function taskSegmentGeometry(
-  segments: TaskSegment[],
-  circumference: number,
-): Array<{ segment: TaskSegment; offset: number; length: number; fillLength: number }> {
-  const totalWeight = segments.reduce((sum, segment) => sum + segment.weight, 0) || 1;
-  let cursor = 0;
-  return segments.map((segment) => {
-    const length = Math.max(1.5, (segment.weight / totalWeight) * circumference);
-    const geometry = {
-      segment,
-      offset: cursor,
-      length,
-      fillLength: length * segment.fraction,
-    };
-    cursor += length;
-    return geometry;
-  });
 }

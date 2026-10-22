@@ -4,11 +4,11 @@ const STATIC_VIEWS: Record<string, MailView> = {
   '/': 'all',
   '/unread': 'unread',
   '/sent': 'sent',
-  '/sending': 'sending',
   '/drafts': 'drafts',
   '/trash': 'trash',
   '/marked': 'marked',
   '/archive': 'archive',
+  '/tasks': 'tasks',
   '/search': 'search',
 };
 

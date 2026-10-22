@@ -1169,7 +1169,6 @@ export interface components {
             unread: number;
             marked: number;
             drafts: number;
-            sending: number;
             sent: number;
             trash: number;
         };

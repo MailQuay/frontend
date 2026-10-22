@@ -47,7 +47,7 @@ function makeTree(options: {
         other: [],
       },
     ],
-    counts: { all: 0, unread: 0, marked: 0, drafts: 0, sending: 0, sent: 0, trash: 0 },
+    counts: { all: 0, unread: 0, marked: 0, drafts: 0, sent: 0, trash: 0 },
   } as unknown as MailboxTree;
 }
 

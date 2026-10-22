@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from './api';
-import { buildTaskRing, taskColorToken, taskSegmentGeometry } from './aggregate';
+import { buildTaskQueue, taskColorToken } from './aggregate';
 
 function task(overrides: Partial<Task> & Pick<Task, 'id' | 'type' | 'status'>): Task {
   return {
@@ -12,54 +12,46 @@ function task(overrides: Partial<Task> & Pick<Task, 'id' | 'type' | 'status'>): 
   };
 }
 
-describe('task aggregation', () => {
-  it('returns an idle model for no tasks', () => {
-    const ring = buildTaskRing([]);
-    expect(ring.segments).toEqual([]);
-    expect(ring.percent).toBe(0);
-    expect(ring.activeCount).toBe(0);
-    expect(ring.failedCount).toBe(0);
+describe('task queue', () => {
+  it('returns an empty queue for no tasks', () => {
+    const queue = buildTaskQueue([]);
+    expect(queue.segments).toEqual([]);
+    expect(queue.activeCount).toBe(0);
+    expect(queue.failedCount).toBe(0);
+    expect(queue.runningCount).toBe(0);
   });
 
-  it('aggregates progress across task types and weights by workload', () => {
-    const ring = buildTaskRing([
-      task({ id: 'a', type: 'mailbox_sync', status: 'running', done: 40, total: 100 }),
-      task({ id: 'b', type: 'body_fetch', status: 'pending', total: 10 }),
-      task({ id: 'c', type: 'search_index', status: 'completed', done: 100, total: 100 }),
-    ]);
-    expect(ring.totalDone).toBe(140);
-    expect(ring.totalTotal).toBe(210);
-    expect(ring.percent).toBe(67);
-    expect(ring.runningCount).toBe(1);
-    expect(ring.segments.map((segment) => segment.type)).toEqual([
-      'mailbox_sync',
-      'body_fetch',
-      'search_index',
-    ]);
-    expect(ring.segments[0].fraction).toBeCloseTo(0.4);
-    expect(ring.segments[1].fraction).toBe(0);
-    expect(ring.segments[1].pending).toBe(true);
-  });
-
-  it('pins failed tasks first and paints them red', () => {
-    const ring = buildTaskRing([
-      task({ id: 'running', type: 'mailbox_sync', status: 'running', done: 1, total: 10 }),
-      task({
-        id: 'failed',
-        type: 'search_index',
-        status: 'failed',
-        done: 2,
-        total: 5,
-        error: 'index offline',
-      }),
+  it('orders running work before queued, failed, and completed work', () => {
+    const queue = buildTaskQueue([
+      task({ id: 'completed', type: 'search_index', status: 'completed', done: 4, total: 4 }),
+      task({ id: 'failed', type: 'search_index', status: 'failed', done: 2, total: 5 }),
       task({ id: 'pending', type: 'body_fetch', status: 'pending', total: 5 }),
+      task({ id: 'running', type: 'mailbox_sync', status: 'running', done: 1, total: 10 }),
     ]);
-    expect(ring.segments[0].id).toBe('failed');
-    expect(ring.segments[0].colorToken).toBe('--task-error');
-    expect(ring.segments[0].fraction).toBe(1);
-    expect(ring.segments[0].failed).toBe(true);
-    expect(ring.failedCount).toBe(1);
-    expect(ring.segments.at(-1)?.id).toBe('pending');
+    expect(queue.segments.map((segment) => segment.id)).toEqual([
+      'running',
+      'pending',
+      'failed',
+      'completed',
+    ]);
+    expect(queue.runningCount).toBe(1);
+    expect(queue.failedCount).toBe(1);
+    expect(queue.activeCount).toBe(2);
+  });
+
+  it('computes per-task percentages, clamping done to total', () => {
+    const queue = buildTaskQueue([
+      task({ id: 'half', type: 'mailbox_sync', status: 'running', done: 5, total: 10 }),
+      task({ id: 'over', type: 'body_fetch', status: 'running', done: 9, total: 4 }),
+      task({ id: 'unknown', type: 'body_fetch', status: 'running', done: 7 }),
+      task({ id: 'done', type: 'search_index', status: 'completed', done: 0, total: 0 }),
+    ]);
+    const byId = new Map(queue.segments.map((segment) => [segment.id, segment]));
+    expect(byId.get('half')?.percent).toBe(50);
+    expect(byId.get('over')?.percent).toBe(100);
+    expect(byId.get('over')?.done).toBe(4);
+    expect(byId.get('unknown')?.percent).toBe(0);
+    expect(byId.get('done')?.percent).toBe(100);
   });
 
   it('maps task types to theme color tokens', () => {
@@ -73,21 +65,9 @@ describe('task aggregation', () => {
   });
 
   it('ignores cancelled tasks', () => {
-    const ring = buildTaskRing([
+    const queue = buildTaskQueue([
       task({ id: 'cancelled', type: 'mailbox_sync', status: 'cancelled', total: 5 }),
     ]);
-    expect(ring.segments).toEqual([]);
-  });
-
-  it('produces arcs whose lengths fill the ring', () => {
-    const ring = buildTaskRing([
-      task({ id: 'a', type: 'mailbox_sync', status: 'running', done: 1, total: 2 }),
-      task({ id: 'b', type: 'body_fetch', status: 'running', done: 1, total: 3 }),
-    ]);
-    const circumference = 2 * Math.PI * 16;
-    const geometry = taskSegmentGeometry(ring.segments, circumference);
-    expect(geometry.reduce((sum, entry) => sum + entry.length, 0)).toBeCloseTo(circumference, 5);
-    expect(geometry[0].fillLength).toBeCloseTo(geometry[0].length * 0.5, 5);
-    expect(geometry[1].offset).toBeCloseTo(geometry[0].length, 5);
+    expect(queue.segments).toEqual([]);
   });
 });

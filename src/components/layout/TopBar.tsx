@@ -19,7 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { TaskRing } from '@/features/tasks/TaskRing';
 import { useComposeLauncher } from '@/features/compose/useComposeLauncher';
 import { useSearchStore } from '@/stores/search';
 import { ThemeToggle } from './ThemeToggle';
@@ -141,8 +140,6 @@ export function TopBar({ onOpenNav }: { onOpenNav: () => void }) {
           <TooltipContent>{t('topbar.refresh')}</TooltipContent>
         </Tooltip>
       </div>
-
-      <TaskRing />
 
       <div className="hidden md:flex">
         <ThemeToggle />

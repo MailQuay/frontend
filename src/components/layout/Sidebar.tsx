@@ -5,8 +5,8 @@ import { Link, useLocation } from 'react-router';
 import {
   Archive,
   ChevronRight,
-  Clock3,
   FileText,
+  ListChecks,
   Inbox,
   Mail,
   MailOpen,
@@ -34,11 +34,11 @@ export type MailView =
   | 'all'
   | 'unread'
   | 'sent'
-  | 'sending'
   | 'drafts'
   | 'trash'
   | 'marked'
   | 'archive'
+  | 'tasks'
   | 'search'
   | 'folder';
 
@@ -103,7 +103,6 @@ export function Sidebar({
     { view: 'all', href: '/', label: t('nav.all'), icon: Mail, count: counts?.all },
     { view: 'unread', href: '/unread', label: t('nav.unread'), icon: MailOpen, count: counts?.unread },
     { view: 'sent', href: '/sent', label: t('nav.sent'), icon: Send, count: counts?.sent },
-    { view: 'sending', href: '/sending', label: t('nav.sending'), icon: Clock3, count: counts?.sending },
     { view: 'drafts', href: '/drafts', label: t('nav.drafts'), icon: FileText, count: counts?.drafts },
     { view: 'trash', href: '/trash', label: t('nav.trash'), icon: Trash2, count: counts?.trash },
   ];
@@ -121,6 +120,13 @@ export function Sidebar({
     href: '/archive',
     label: t('nav.archive'),
     icon: Archive,
+  });
+  favorites.push({
+    view: 'tasks',
+    href: '/tasks',
+    label: t('nav.tasks'),
+    icon: ListChecks,
+    count: activeTasks,
   });
 
   const totalAccounts = accounts.length;

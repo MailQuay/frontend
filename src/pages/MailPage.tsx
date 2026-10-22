@@ -12,7 +12,7 @@ import { useSearchMessages } from '@/features/search/useSearch';
 import { useSearchStore } from '@/stores/search';
 import { ArchivePage } from '@/features/archive/ArchivePage';
 import { DraftsPage } from '@/features/compose/DraftsPage';
-import { OutboxPage } from '@/features/compose/OutboxPage';
+import { TaskCenterPage } from '@/features/tasks/TaskCenterPage';
 import { Button } from '@/components/ui/button';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { mailViewFromPathname } from '@/lib/routes';
@@ -35,7 +35,7 @@ export function MailPage() {
   useDocumentTitle('');
 
   if (view === 'drafts') return <DraftsPage />;
-  if (view === 'sending') return <OutboxPage />;
+  if (view === 'tasks') return <TaskCenterPage />;
   if (view === 'archive') return <ArchivePage />;
   if (view === 'search') return <SearchPage />;
   if (view === 'folder') {
