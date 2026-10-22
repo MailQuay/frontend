@@ -814,8 +814,8 @@ const zhCN = {
       deletion: '删除',
       deleteMode: '删除模式',
       deleteModes: {
-        provider_auto: '移入垃圾邮件, 由服务商清理',
-        local_queue: '移入垃圾邮件, 本地延迟后删除',
+        provider_auto: '移入垃圾箱, 由服务商清理',
+        local_queue: '移入垃圾箱, 本地延迟后删除',
       },
       deleteQueueDays: '本地删除队列保留天数',
       deleteQueueHint: '范围为 1 到 365 天.',

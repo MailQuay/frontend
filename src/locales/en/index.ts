@@ -822,8 +822,8 @@ const en = {
       deletion: 'Deletion',
       deleteMode: 'Delete mode',
       deleteModes: {
-        provider_auto: 'Move to Junk and let the provider clean up',
-        local_queue: 'Move to Junk and delete after a local delay',
+        provider_auto: 'Move to Trash and let the provider clean up',
+        local_queue: 'Move to Trash and delete after a local delay',
       },
       deleteQueueDays: 'Local delete queue (days)',
       deleteQueueHint: 'Between 1 and 365 days.',

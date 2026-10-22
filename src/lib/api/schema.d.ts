@@ -2292,7 +2292,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Message moved to Junk or queued for deletion. */
+            /** @description Message moved to Trash or queued for deletion. */
             202: {
                 headers: {
                     [name: string]: unknown;
