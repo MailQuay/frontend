@@ -71,6 +71,7 @@ export function MessageReader({
   const markedReadRef = useRef<string | null>(null);
 
   const message = detail.data;
+  const inTrash = message?.mailboxRole === 'trash';
   const senderEmail = message?.from?.email;
   const senderAllowed = isSenderImagesAllowed(senderEmail);
 
@@ -435,8 +436,8 @@ export function MessageReader({
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={t('reader.delete')}
-        description={t('reader.deleteConfirm')}
+        title={inTrash ? t('reader.deletePermanentTitle') : t('reader.delete')}
+        description={inTrash ? t('reader.deletePermanentConfirm') : t('reader.deleteConfirm')}
         confirmLabel={t('common.delete')}
         pending={remove.isPending}
         onConfirm={() => remove.mutate()}

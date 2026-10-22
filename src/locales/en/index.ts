@@ -243,6 +243,9 @@ const en = {
     archive: 'Archive locally',
     delete: 'Delete',
     deleteConfirm: 'Delete this message?',
+    deletePermanentTitle: 'Delete permanently',
+    deletePermanentConfirm:
+      'This message is already in Trash. Deleting it removes it from the server permanently and cannot be undone. Continue?',
     archiveSuccess: 'Archived to local storage',
     downloadAttachment: 'Download {{name}}',
     downloadOriginal: 'Download original message',

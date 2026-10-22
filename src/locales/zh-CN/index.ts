@@ -243,6 +243,8 @@ const zhCN = {
     archive: '本地归档',
     delete: '删除',
     deleteConfirm: '删除这封邮件?',
+    deletePermanentTitle: '永久删除',
+    deletePermanentConfirm: '这封邮件已在垃圾箱, 删除后将从服务器永久移除, 无法恢复. 继续?',
     archiveSuccess: '已归档到本地',
     downloadAttachment: '下载 {{name}}',
     downloadOriginal: '下载原始邮件',
