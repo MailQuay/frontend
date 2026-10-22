@@ -17,6 +17,12 @@ export async function fetchMailbox(mailboxId: string): Promise<Mailbox> {
   return unwrap(await api.GET('/mailboxes/{id}', { params: { path: { id: mailboxId } } }));
 }
 
+export async function requestAllSync(): Promise<void> {
+  const result = await api.POST('/sync');
+  if (result.response.ok) return;
+  unwrap(result);
+}
+
 export async function requestMailboxSync(mailboxId: string): Promise<void> {
   const result = await api.POST('/mailboxes/{id}/sync', {
     params: { path: { id: mailboxId } },

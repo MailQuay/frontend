@@ -57,13 +57,16 @@ export function useEventStream(enabled = true): void {
       }
       for (const key of keys) {
         if (key.length === 1 && key[0] === 'tasks') {
-          // Progress updates can arrive in bursts; coalesce them so the ring
-          // redraws at most a few times per second instead of per event.
-          if (taskTimer !== undefined) window.clearTimeout(taskTimer);
-          taskTimer = window.setTimeout(() => {
-            taskTimer = undefined;
-            void queryClient.invalidateQueries({ queryKey: key });
-          }, 300);
+          // Task progress updates can arrive in bursts; throttle them so the
+          // task center and sidebar badge refresh at most every 1.5 seconds.
+          // Do not reset a pending timer: a steady stream of progress events
+          // must still refresh on schedule.
+          if (taskTimer === undefined) {
+            taskTimer = window.setTimeout(() => {
+              taskTimer = undefined;
+              void queryClient.invalidateQueries({ queryKey: key });
+            }, 1500);
+          }
           continue;
         }
         void queryClient.invalidateQueries({ queryKey: key });
@@ -81,6 +84,7 @@ export function useEventStream(enabled = true): void {
         attempts = 0;
         if (!reconnected) return;
         void queryClient.invalidateQueries({ queryKey: ['mailboxes'] });
+        void queryClient.invalidateQueries({ queryKey: ['tasks'] });
         publishMailEvent('stream.reconnected', { lastEventId });
       };
       for (const name of EVENT_NAMES) {

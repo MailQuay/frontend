@@ -12,6 +12,20 @@ export async function fetchTasks(): Promise<Task[]> {
   return data.tasks;
 }
 
+export async function deleteTask(id: string): Promise<void> {
+  const result = await api.DELETE('/tasks/{id}', { params: { path: { id } } });
+  if (result.response.ok) return;
+  unwrap(result);
+}
+
+export async function deleteTasksByType(types: string[], accountId?: string): Promise<void> {
+  const result = await api.DELETE('/tasks', {
+    params: { query: { type: types, accountId } },
+  });
+  if (result.response.ok) return;
+  unwrap(result);
+}
+
 export async function dismissTask(id: string): Promise<void> {
   const result = await api.POST('/tasks/{id}/dismiss', { params: { path: { id } } });
   if (result.response.ok) return;

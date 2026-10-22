@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Task } from './api';
-import { buildTaskQueue, taskColorToken } from './aggregate';
+import { buildTaskQueue, canonicalTaskType, taskColorToken } from './aggregate';
 
 function task(overrides: Partial<Task> & Pick<Task, 'id' | 'type' | 'status'>): Task {
   return {
@@ -62,6 +62,17 @@ describe('task queue', () => {
     expect(taskColorToken('account_purge', false)).toBe('--task-muted');
     expect(taskColorToken('unknown_type', false)).toBe('--task-muted');
     expect(taskColorToken('initial_sync', true)).toBe('--task-error');
+  });
+
+  it('shows scope reconciliation as a folder sync', () => {
+    expect(canonicalTaskType('scope_reconcile')).toBe('mailbox_sync');
+    expect(canonicalTaskType('mailbox_sync')).toBe('mailbox_sync');
+    expect(canonicalTaskType('search_index')).toBe('search_index');
+    const queue = buildTaskQueue([
+      task({ id: 'reconcile', type: 'scope_reconcile', status: 'completed', done: 5, total: 5 }),
+    ]);
+    expect(queue.segments[0].type).toBe('mailbox_sync');
+    expect(queue.segments[0].colorToken).toBe('--task-sync');
   });
 
   it('ignores cancelled tasks', () => {

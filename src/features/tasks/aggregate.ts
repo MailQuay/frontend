@@ -14,6 +14,7 @@ export type TaskColorToken =
 export interface TaskSegment {
   id: string;
   type: string;
+  sourceType: string;
   status: TaskStatus;
   colorToken: TaskColorToken;
   done: number;
@@ -21,6 +22,7 @@ export interface TaskSegment {
   unit: string;
   accountId?: string;
   message?: string;
+  completedAt?: string;
   error?: string;
   pending: boolean;
   failed: boolean;
@@ -59,6 +61,17 @@ const STATUS_ORDER: Record<string, number> = {
   completed: 3,
 };
 
+// Some task types describe the same user-visible work. Scope reconciliation
+// only trims local data to the account's current range, so it is shown as a
+// folder sync instead of naming the internal step.
+const TASK_TYPE_ALIASES: Record<string, string> = {
+  scope_reconcile: 'mailbox_sync',
+};
+
+export function canonicalTaskType(type: string): string {
+  return TASK_TYPE_ALIASES[type] ?? type;
+}
+
 export function taskColorToken(type: string, failed: boolean): TaskColorToken {
   if (failed) return '--task-error';
   return TASK_TOKEN_BY_TYPE[type] ?? '--task-muted';
@@ -81,7 +94,8 @@ export function buildTaskQueue(tasks: Task[]): TaskQueue {
     if (failed) failedCount += 1;
     segments.push({
       id: task.id,
-      type: task.type,
+      type: canonicalTaskType(task.type),
+      sourceType: task.type,
       status: task.status,
       colorToken: taskColorToken(task.type, failed),
       done,
@@ -89,6 +103,7 @@ export function buildTaskQueue(tasks: Task[]): TaskQueue {
       unit: task.unit,
       accountId: task.accountId,
       message: task.message,
+      completedAt: task.completedAt,
       error: task.error,
       pending: task.status === 'pending',
       failed,
