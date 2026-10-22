@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router';
 import {
   Archive,
-  ChevronDown,
   ChevronRight,
   Clock3,
   FileText,
@@ -81,6 +80,17 @@ export function Sidebar({
   const toggleAccount = useUiStore((state) => state.toggleAccount);
   const expandedOther = useUiStore((state) => state.expandedOther);
   const toggleOther = useUiStore((state) => state.toggleOther);
+  // Account expansion is persisted, so animating on first paint would replay
+  // the last saved state. Enable the transition on the first user toggle.
+  const [animateFolders, setAnimateFolders] = useState(false);
+  const toggleAccountAnimated = (accountId: string) => {
+    setAnimateFolders(true);
+    toggleAccount(accountId);
+  };
+  const toggleOtherAnimated = (accountId: string) => {
+    setAnimateFolders(true);
+    toggleOther(accountId);
+  };
 
   const tree = treeQuery.data;
   const counts = tree?.counts;
@@ -220,7 +230,7 @@ export function Sidebar({
                 });
               }
               return (
-                <div key={account.id}>
+                <Collapsible key={account.id} open={expanded}>
                   <div
                     className={cn(
                       'flex min-h-7 items-center rounded-lg pr-1 text-[13px] hover:bg-accent hover:text-accent-foreground',
@@ -229,7 +239,7 @@ export function Sidebar({
                   >
                     <button
                       type="button"
-                      onClick={() => toggleAccount(account.id)}
+                      onClick={() => toggleAccountAnimated(account.id)}
                       aria-expanded={expanded}
                       aria-label={
                         expanded
@@ -238,11 +248,13 @@ export function Sidebar({
                       }
                       className="flex min-h-7 min-w-0 flex-1 items-center gap-1.5 rounded-lg px-2.5 text-left"
                     >
-                      {expanded ? (
-                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                      ) : (
-                        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                      )}
+                      <ChevronRight
+                        className={cn(
+                          'size-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+                          expanded && 'rotate-90',
+                        )}
+                        aria-hidden="true"
+                      />
                       <span className="min-w-0 flex-1 truncate">{account.email}</span>
                       {unread > 0 ? (
                         <span className="text-[11px] tabular-nums text-muted-foreground">{unread}</span>
@@ -252,7 +264,7 @@ export function Sidebar({
                       <AccountSyncFailure email={account.email} failures={failures} />
                     ) : null}
                   </div>
-                  {expanded ? (
+                  <CollapsibleContent animated={animateFolders}>
                     <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2">
                       {inbox ? (
                         <Link
@@ -356,7 +368,7 @@ export function Sidebar({
                           ) : null}
                         </Link>
                       ) : null}
-                      <Collapsible open={otherExpanded} onOpenChange={() => toggleOther(account.id)}>
+                      <Collapsible open={otherExpanded} onOpenChange={() => toggleOtherAnimated(account.id)}>
                         <CollapsibleTrigger asChild>
                           <button
                             type="button"
@@ -368,18 +380,20 @@ export function Sidebar({
                             }
                             className="flex min-h-7 w-full items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                           >
-                            {otherExpanded ? (
-                              <ChevronDown className="size-3.5" aria-hidden="true" />
-                            ) : (
-                              <ChevronRight className="size-3.5" aria-hidden="true" />
-                            )}
+                            <ChevronRight
+                              className={cn(
+                                'size-3.5 transition-transform duration-200',
+                                otherExpanded && 'rotate-90',
+                              )}
+                              aria-hidden="true"
+                            />
                             <span className="flex-1 truncate text-left">{t('nav.other')}</span>
                             {otherFolders.length > 0 ? (
                               <Badge variant="muted">{otherFolders.length}</Badge>
                             ) : null}
                           </button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent>
+                        <CollapsibleContent animated={animateFolders}>
                           <div className="ml-2 space-y-0.5 border-l pl-2">
                             {otherFolders.length === 0 ? (
                               <p className="px-2 py-1 text-xs text-muted-foreground">
@@ -415,8 +429,8 @@ export function Sidebar({
                         </CollapsibleContent>
                       </Collapsible>
                     </div>
-                  ) : null}
-                </div>
+                  </CollapsibleContent>
+                </Collapsible>
               );
             })}
           </div>
