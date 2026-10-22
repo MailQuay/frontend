@@ -196,56 +196,57 @@ export function TaskCenterPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="flex min-h-14 shrink-0 items-center gap-2 border-b px-4 py-2 md:px-6">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-base font-semibold">{t('tasks.centerTitle')}</h1>
-          <p className="text-xs text-muted-foreground">
-            {t('tasks.centerDescription', { count: queue.activeCount })}
-          </p>
+      <div className="flex min-h-14 shrink-0 items-center border-b px-4 py-2 md:px-6">
+        <div className="mx-auto flex w-full max-w-3xl min-w-0 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-semibold">{t('tasks.centerTitle')}</h1>
+            <p className="text-xs text-muted-foreground">
+              {t('tasks.centerDescription', { count: queue.activeCount })}
+            </p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('topbar.refresh')}
+                onClick={() => void query.refetch()}
+                disabled={query.isFetching}
+              >
+                <RefreshCw
+                  className={query.isFetching ? 'size-4 animate-spin' : 'size-4'}
+                  aria-hidden="true"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('topbar.refresh')}</TooltipContent>
+          </Tooltip>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('topbar.refresh')}
-              onClick={() => void query.refetch()}
-              disabled={query.isFetching}
-            >
-              <RefreshCw
-                className={query.isFetching ? 'size-4 animate-spin' : 'size-4'}
-                aria-hidden="true"
-              />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t('topbar.refresh')}</TooltipContent>
-        </Tooltip>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {query.isPending ? (
-          <LoadingState label={t('app.loading')} />
-        ) : query.isError ? (
-          <ErrorState error={query.error} onRetry={() => void query.refetch()} />
-        ) : queue.segments.length === 0 ? (
-          <EmptyState
-            icon={<AlertTriangle className="size-5" aria-hidden="true" />}
-            title={t('tasks.emptyTitle')}
-            description={t('tasks.emptyBody')}
-          />
-        ) : (
-          <div aria-live="polite">
-            {section(
-              t('tasks.activeTitle'),
-              active,
-            )}
-            {section(
-              t('tasks.failedTitle'),
-              failed,
-              <AlertTriangle className="size-3 text-destructive" aria-hidden="true" />,
-            )}
-          </div>
-        )}
+        <div className="mx-auto flex h-full w-full max-w-3xl flex-col">
+          {query.isPending ? (
+            <LoadingState label={t('app.loading')} />
+          ) : query.isError ? (
+            <ErrorState error={query.error} onRetry={() => void query.refetch()} />
+          ) : queue.segments.length === 0 ? (
+            <EmptyState
+              icon={<AlertTriangle className="size-5" aria-hidden="true" />}
+              title={t('tasks.emptyTitle')}
+              description={t('tasks.emptyBody')}
+            />
+          ) : (
+            <div aria-live="polite">
+              {section(t('tasks.activeTitle'), active)}
+              {section(
+                t('tasks.failedTitle'),
+                failed,
+                <AlertTriangle className="size-3 text-destructive" aria-hidden="true" />,
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
