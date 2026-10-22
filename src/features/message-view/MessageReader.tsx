@@ -101,7 +101,11 @@ export function MessageReader({
       void queryClient.invalidateQueries({ queryKey: ['messages'] });
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData(messageKeys.detail(updated.id), updated);
+      // PATCH may omit fields it does not compute (attachments, enrichment);
+      // keep the cached copies so inline images and the detail panel survive.
+      queryClient.setQueryData<MessageDetail>(messageKeys.detail(updated.id), (previous) =>
+        previous ? { ...previous, ...updated } : updated,
+      );
     },
   });
 
@@ -140,7 +144,10 @@ export function MessageReader({
       toast(t('common.deleteFailed'), { description: messageError(error), variant: 'destructive' }),
   });
 
-  const cidImages = useCidImages(detail.data?.id, detail.data?.attachments);
+  const cidImages = useCidImages(
+    detail.data?.id,
+    message?.attachments ?? body.data?.attachments,
+  );
 
   if (detail.isPending) {
     return <LoadingState label={t('reader.loading')} />;
