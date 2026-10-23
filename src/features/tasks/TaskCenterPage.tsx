@@ -148,9 +148,7 @@ function TaskMenu({
     (item) =>
       item.status === 'failed' &&
       task &&
-      (!task.accountId ||
-        item.accountId === task.accountId ||
-        item.identityAccountId === task.accountId),
+      (!task.accountId || item.accountId === task.accountId),
   );
 
   const retry = useMutation({

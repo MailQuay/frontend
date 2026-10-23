@@ -8,8 +8,7 @@ export type ComposeChannelMessage =
 
 function isDraftInput(value: unknown): value is DraftInput {
   if (typeof value !== 'object' || value === null) return false;
-  if (!('identityAccountId' in value) || typeof value.identityAccountId !== 'string') return false;
-  if (!('identityEmail' in value) || typeof value.identityEmail !== 'string') return false;
+  if (!('accountId' in value) || typeof value.accountId !== 'string') return false;
   if (!('subject' in value) || typeof value.subject !== 'string') return false;
   if (!('bodyText' in value) || typeof value.bodyText !== 'string') return false;
   if (!('bodyHtml' in value) || typeof value.bodyHtml !== 'string') return false;

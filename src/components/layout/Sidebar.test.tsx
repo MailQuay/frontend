@@ -27,7 +27,6 @@ function makeTree(options: {
           email: 'owner@example.com',
           state: options.accountError ? 'error' : 'connected',
           lastError: options.accountError,
-          identities: [],
         },
         folders: [
           {

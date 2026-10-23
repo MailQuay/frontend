@@ -6,7 +6,6 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { PreferencesSettingsPage } from './settings/PreferencesPage';
 import { AccountSettingsPage } from './settings/AccountPage';
 import { MailAccountsSettingsPage } from './settings/AccountsPage';
-import { IdentitiesSettingsPage } from './settings/IdentitiesPage';
 import { MailSettingsPage } from './settings/MailSettingsPage';
 import { PerformanceSettingsPage } from './settings/PerformancePage';
 import { ServerSettingsPage } from './settings/ServerPage';
@@ -19,7 +18,6 @@ const META: Record<SettingsGroup, { titleKey: string; descriptionKey: string }> 
   },
   account: { titleKey: 'settings.account.title', descriptionKey: 'settings.account.description' },
   accounts: { titleKey: 'account.title', descriptionKey: 'account.description' },
-  identities: { titleKey: 'identity.title', descriptionKey: 'identity.description' },
   mail: { titleKey: 'settings.mail.title', descriptionKey: 'settings.mail.description' },
   performance: {
     titleKey: 'settings.performance.title',
@@ -51,8 +49,6 @@ export function SettingsPage() {
         return <AccountSettingsPage />;
       case 'accounts':
         return <MailAccountsSettingsPage />;
-      case 'identities':
-        return <IdentitiesSettingsPage />;
       case 'mail':
         return <MailSettingsPage />;
       case 'performance':

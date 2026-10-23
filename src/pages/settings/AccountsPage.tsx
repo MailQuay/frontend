@@ -79,7 +79,8 @@ type SpecialFolderRole = (typeof SPECIAL_FOLDER_FIELDS)[number]['role'];
 interface AccountFormState {
   name: string;
   email: string;
-  provider: string;
+  defaultSendName: string;
+  defaultReplyTo: string;
   username: string;
   authType: AccountInput['authType'];
   password: string;
@@ -108,7 +109,8 @@ function formFromAccount(account: Account): AccountFormState {
   return {
     name: account.name,
     email: account.email,
-    provider: account.provider ?? '',
+    defaultSendName: account.defaultSendName ?? '',
+    defaultReplyTo: account.defaultReplyTo ?? '',
     username: account.username,
     authType: account.authType,
     password: '',
@@ -212,6 +214,9 @@ function AccountFormDialog({
     const errors: string[] = [];
     if (form.name.trim() === '') errors.push(t('account.formErrors.name'));
     if (!EMAIL_PATTERN.test(form.email.trim())) errors.push(t('account.formErrors.email'));
+    if (form.defaultReplyTo.trim() !== '' && !EMAIL_PATTERN.test(form.defaultReplyTo.trim())) {
+      errors.push(t('account.formErrors.defaultReplyTo'));
+    }
     if (form.username.trim() === '') errors.push(t('account.formErrors.username'));
     if (form.receiveProtocol === 'imap' && !ADDRESS_PATTERN.test(form.imapAddr.trim())) {
       errors.push(t('account.formErrors.imapAddr'));
@@ -233,7 +238,8 @@ function AccountFormDialog({
     const input: AccountInput = {
       name: form.name.trim(),
       email: form.email.trim(),
-      provider: form.provider.trim() || undefined,
+      defaultSendName: form.defaultSendName.trim() || undefined,
+      defaultReplyTo: form.defaultReplyTo.trim() || undefined,
       username: form.username.trim(),
       authType: form.authType,
       password: form.password || undefined,
@@ -300,12 +306,25 @@ function AccountFormDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="account-provider">{t('account.provider')}</Label>
+              <Label htmlFor="account-default-send-name">{t('account.defaultSendName')}</Label>
               <Input
-                id="account-provider"
-                value={form.provider}
-                onChange={(event) => update('provider', event.target.value)}
+                id="account-default-send-name"
+                value={form.defaultSendName}
+                onChange={(event) => update('defaultSendName', event.target.value)}
+                placeholder={form.name}
               />
+              <p className="text-[11px] text-muted-foreground">{t('account.defaultSendNameHint')}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="account-default-reply-to">{t('account.defaultReplyTo')}</Label>
+              <Input
+                id="account-default-reply-to"
+                type="email"
+                value={form.defaultReplyTo}
+                onChange={(event) => update('defaultReplyTo', event.target.value)}
+                placeholder={form.email}
+              />
+              <p className="text-[11px] text-muted-foreground">{t('account.defaultReplyToHint')}</p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="account-username">{t('account.username')}</Label>
@@ -882,8 +901,7 @@ export function MailAccountsSettingsPage() {
                   ) : null}
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     {t(`account.syncRanges.${account.initialSyncRange}`)} ·{' '}
-                    {t(`account.downloadScopes.${account.downloadScope}`)} ·{' '}
-                    {t('account.identitiesCount', { count: account.identities?.length ?? 0 })}
+                    {t(`account.downloadScopes.${account.downloadScope}`)}
                   </p>
                   {account.lastError ? (
                     <p className="mt-1 text-xs text-destructive">{account.lastError}</p>

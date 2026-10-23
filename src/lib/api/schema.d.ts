@@ -238,62 +238,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/accounts/{id}/identities": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-            };
-            cookie?: never;
-        };
-        get: operations["listIdentities"];
-        put?: never;
-        post: operations["createIdentity"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/accounts/{id}/identities/{email}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-                email: components["parameters"]["IdentityEmail"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["deleteIdentity"];
-        options?: never;
-        head?: never;
-        patch: operations["updateIdentity"];
-        trace?: never;
-    };
-    "/accounts/{id}/identities/{email}/default": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-                email: components["parameters"]["IdentityEmail"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["setDefaultIdentity"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/mailboxes": {
         parameters: {
             query?: never;
@@ -1037,9 +981,10 @@ export interface components {
             lastError?: string;
             autoDetectSpecialFolders?: boolean;
             specialFolders?: components["schemas"]["SpecialFolders"];
+            defaultSendName: string;
+            defaultReplyTo: string;
             /** Format: date-time */
             createdAt: string;
-            identities?: components["schemas"]["Identity"][];
         };
         SpecialFolders: {
             sent?: string;
@@ -1085,6 +1030,8 @@ export interface components {
             pop3DeleteOnServer?: boolean;
             autoDetectSpecialFolders?: boolean;
             specialFolders?: components["schemas"]["SpecialFolders"];
+            defaultSendName?: string;
+            defaultReplyTo?: string;
         };
         DiscoveryRequest: {
             /** Format: email */
@@ -1142,32 +1089,6 @@ export interface components {
             receiveOk: boolean;
             smtpOk: boolean;
             errors: string[];
-        };
-        Identity: {
-            /** Format: uuid */
-            accountId: string;
-            email: string;
-            name: string;
-            organization?: string;
-            replyTo?: string;
-            bcc?: string[];
-            signatureHtml?: string;
-            signatureText?: string;
-            /** @enum {string} */
-            signatureMode: "all" | "new" | "reply" | "forward" | "none";
-            isDefault: boolean;
-        };
-        IdentityInput: {
-            email: string;
-            name: string;
-            organization?: string;
-            replyTo?: string;
-            bcc?: string[];
-            signatureHtml?: string;
-            signatureText?: string;
-            /** @enum {string} */
-            signatureMode: "all" | "new" | "reply" | "forward" | "none";
-            isDefault?: boolean;
         };
         Mailbox: {
             /** Format: uuid */
@@ -1332,10 +1253,8 @@ export interface components {
             id: string;
             /** Format: uuid */
             accountId: string;
-            /** Format: uuid */
-            identityAccountId: string;
-            identityEmail: string;
             inReplyTo?: string;
+            replyTo?: string;
             to?: string[];
             cc?: string[];
             bcc?: string[];
@@ -1356,9 +1275,9 @@ export interface components {
         };
         DraftInput: {
             /** Format: uuid */
-            identityAccountId: string;
-            identityEmail: string;
+            accountId: string;
             inReplyTo?: string;
+            replyTo?: string;
             to?: string[];
             cc?: string[];
             bcc?: string[];
@@ -1373,9 +1292,6 @@ export interface components {
         SendRequest: {
             /** Format: uuid */
             draftId: string;
-            /** Format: uuid */
-            identityAccountId: string;
-            identityEmail: string;
             /** Format: date-time */
             scheduledAt?: string;
         };
@@ -1384,9 +1300,6 @@ export interface components {
             id: string;
             /** Format: uuid */
             accountId: string;
-            /** Format: uuid */
-            identityAccountId: string;
-            identityEmail: string;
             /** Format: uuid */
             draftId: string;
             messageIdHeader?: string;
@@ -1451,8 +1364,6 @@ export interface components {
             /** @enum {string} */
             composeWindowMode: "in_app" | "new_window";
             sendRetryLimit: number;
-            /** @enum {string} */
-            signaturePosition: "above_quote" | "below_quote";
             networkAvatars: boolean;
             gravatarAvatars: boolean;
             bimiAvatars: boolean;
@@ -1495,8 +1406,6 @@ export interface components {
             /** @enum {string} */
             composeWindowMode?: "in_app" | "new_window";
             sendRetryLimit?: number;
-            /** @enum {string} */
-            signaturePosition?: "above_quote" | "below_quote";
             networkAvatars?: boolean;
             gravatarAvatars?: boolean;
             bimiAvatars?: boolean;
@@ -1604,7 +1513,6 @@ export interface components {
         MailboxID: string;
         MessageID: string;
         AttachmentID: string;
-        IdentityEmail: string;
         OAuthProvider: "google" | "microsoft";
     };
     requestBodies: never;
@@ -2057,137 +1965,6 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
-        };
-    };
-    listIdentities: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Sender identities. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        identities: components["schemas"]["Identity"][];
-                    };
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createIdentity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IdentityInput"];
-            };
-        };
-        responses: {
-            /** @description Identity created. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Identity"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    deleteIdentity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-                email: components["parameters"]["IdentityEmail"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Identity deleted. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    updateIdentity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-                email: components["parameters"]["IdentityEmail"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IdentityInput"];
-            };
-        };
-        responses: {
-            /** @description Updated identity. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Identity"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setDefaultIdentity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: components["parameters"]["AccountID"];
-                email: components["parameters"]["IdentityEmail"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Default identity updated. */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
         };
     };
     getMailboxTree: {

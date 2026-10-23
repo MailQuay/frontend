@@ -10,7 +10,6 @@ import {
   Settings,
   SlidersHorizontal,
   UserRound,
-  UsersRound,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -19,7 +18,6 @@ export type SettingsGroup =
   | 'preferences'
   | 'account'
   | 'accounts'
-  | 'identities'
   | 'mail'
   | 'performance'
   | 'server'
@@ -29,7 +27,6 @@ const SETTINGS_GROUPS: Record<SettingsGroup, true> = {
   preferences: true,
   account: true,
   accounts: true,
-  identities: true,
   mail: true,
   performance: true,
   server: true,
@@ -70,13 +67,6 @@ export const SETTINGS_NAV: NavGroup[] = [
         labelKey: 'settings.nav.accounts',
         descriptionKey: 'settings.items.accounts',
         icon: Server,
-      },
-      {
-        group: 'identities',
-        href: '/settings/identities',
-        labelKey: 'settings.nav.identities',
-        descriptionKey: 'settings.items.identities',
-        icon: UsersRound,
       },
       {
         group: 'preferences',

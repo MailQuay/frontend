@@ -41,7 +41,7 @@ import { useErrorMessage } from '@/hooks/useErrorMessage';
 import { formatAddress, parseRecipientInput } from '@/lib/mail/address';
 import { formatBytes, formatDate, utcToZonedInput, zonedDateTimeToUtc } from '@/lib/format';
 import { sanitizeMailHtml, textToHtml } from '@/lib/mail/sanitize';
-import type { Identity } from '@/features/identities/api';
+import type { Sender } from './senders';
 import {
   createDraft,
   draftKeys,
@@ -53,14 +53,15 @@ import {
 import { sendMessage } from './outbox-api';
 import { fetchSettings, settingsKeys } from '@/features/settings/api';
 import {
-  recallIdentity,
-  rememberIdentity,
-  resolveDefaultIdentity,
-  syntheticIdentity,
-  useAllIdentities,
-} from './identities';
+  recallSender,
+  rememberSender,
+  resolveDefaultSender,
+  senderName,
+  senderReplyTo,
+  useSenders,
+} from './senders';
 import { useDraftSaver } from './useDraftSaver';
-import { IdentityPicker } from './IdentityPicker';
+import { SenderPicker } from './SenderPicker';
 import { COMPOSE_CHANNEL, SEED_STORAGE_PREFIX, draftWindowName } from './useComposeLauncher';
 import { parseComposeChannelMessage } from './composeChannel';
 
@@ -128,7 +129,7 @@ function quoteFromSeed(
 
 function initialFields(
   seed: ComposeSeed,
-  identity: Identity,
+  sender: Sender,
   locale: string,
   timeZone: string | undefined,
   t: (key: string, options?: Record<string, unknown>) => string,
@@ -137,7 +138,7 @@ function initialFields(
   if (!message || seed.mode === 'new') {
     return { to: '', cc: '', subject: '', html: '<p><br></p>' };
   }
-  const own = identity.email.toLowerCase();
+  const own = sender.email.toLowerCase();
   const fromEmail = message.from?.email ?? '';
   const toEmails =
     seed.mode === 'forward'
@@ -203,7 +204,8 @@ export function ComposeForm({
   const draftIdRef = useRef(draftId);
   const [revision, setRevision] = useState(0);
   const revisionRef = useRef(revision);
-  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [sender, setSender] = useState<Sender | null>(null);
+  const [replyTo, setReplyTo] = useState('');
   const [to, setTo] = useState('');
   const [cc, setCc] = useState('');
   const [bcc, setBcc] = useState('');
@@ -230,7 +232,7 @@ export function ComposeForm({
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  const groupsQuery = useAllIdentities();
+  const sendersQuery = useSenders();
   const settingsQuery = useQuery({ queryKey: settingsKeys.detail, queryFn: fetchSettings });
   const timezone = settingsQuery.data?.timezone;
   const draftQuery = useQuery({
@@ -251,10 +253,10 @@ export function ComposeForm({
   }, [revision]);
 
   const buildPayload = (): DraftInput | null => {
-    if (!identity) return null;
+    if (!sender) return null;
     return {
-      identityAccountId: identity.accountId,
-      identityEmail: identity.email,
+      accountId: sender.accountId,
+      replyTo: replyTo.trim(),
       inReplyTo: effectiveSeed.message?.messageIdHeader,
       to: parseRecipientInput(to),
       cc: parseRecipientInput(cc),
@@ -271,7 +273,7 @@ export function ComposeForm({
   });
 
   const saver = useDraftSaver({
-    enabled: initialized && identity !== null,
+    enabled: initialized && sender !== null,
     draftId,
     revision,
     getPayload: buildPayload,
@@ -306,20 +308,13 @@ export function ComposeForm({
   useEffect(() => {
     if (initialized) return;
     if (draftId) {
-      if (draftQuery.isPending) return;
+      if (draftQuery.isPending || sendersQuery.isPending) return;
       if (draftQuery.isError || !draftQuery.data) {
         setInitialized(true);
         return;
       }
       const draft = draftQuery.data;
-      const groups = groupsQuery.data;
-      const found = groups
-        ?.flatMap((group) => group.identities)
-        .find(
-          (entry) =>
-            entry.accountId === draft.identityAccountId && entry.email === draft.identityEmail,
-        );
-      const nextIdentity = found ?? syntheticIdentity(draft.identityAccountId, draft.identityEmail);
+      const found = sendersQuery.data?.find((entry) => entry.accountId === draft.accountId) ?? null;
       const draftEmpty =
         (draft.to?.length ?? 0) === 0 &&
         (draft.cc?.length ?? 0) === 0 &&
@@ -328,17 +323,14 @@ export function ComposeForm({
         (draft.bodyText ?? '').trim() === '' &&
         (draft.bodyHtml ?? '').trim() === '';
       const seedFields =
-        storedSeed?.message && storedSeed.mode !== 'new'
-          ? initialFields(storedSeed, nextIdentity, i18n.language, timezone, t)
+        storedSeed?.message && storedSeed.mode !== 'new' && found
+          ? initialFields(storedSeed, found, i18n.language, timezone, t)
           : null;
-      setIdentity(nextIdentity);
+      setSender(found);
       setTo(seedFields ? seedFields.to : (draft.to ?? []).join(', '));
       setCc(seedFields ? seedFields.cc : (draft.cc ?? []).join(', '));
-      setBcc(
-        (draft.bcc ?? []).length > 0
-          ? (draft.bcc ?? []).join(', ')
-          : (nextIdentity.bcc ?? []).join(', '),
-      );
+      setBcc((draft.bcc ?? []).join(', '));
+      setReplyTo(draft.replyTo?.trim() || (found ? senderReplyTo(found) : ''));
       setSubject(seedFields ? seedFields.subject : draft.subject);
       setShowCcBcc(
         (draft.cc?.length ?? 0) > 0 ||
@@ -356,17 +348,17 @@ export function ComposeForm({
       if (seedFields && draftEmpty) saverRef.current.schedule();
       return;
     }
-    if (groupsQuery.isPending) return;
-    if (groupsQuery.isError) {
+    if (sendersQuery.isPending) return;
+    if (sendersQuery.isError) {
       setInitialized(true);
       return;
     }
     const preferred = effectiveSeed.message?.accountId ?? effectiveSeed.accountId;
     const chosen = preferred
-      ? resolveDefaultIdentity(groupsQuery.data, preferred) ??
-        recallIdentity(groupsQuery.data) ??
-        resolveDefaultIdentity(groupsQuery.data)
-      : recallIdentity(groupsQuery.data) ?? resolveDefaultIdentity(groupsQuery.data);
+      ? resolveDefaultSender(sendersQuery.data, preferred) ??
+        recallSender(sendersQuery.data) ??
+        resolveDefaultSender(sendersQuery.data)
+      : recallSender(sendersQuery.data) ?? resolveDefaultSender(sendersQuery.data);
     if (!chosen) {
       setInitialized(true);
       return;
@@ -378,24 +370,25 @@ export function ComposeForm({
       timezone,
       t,
     );
-    setIdentity(chosen);
+    setSender(chosen);
     setTo(fields.to);
     setCc(fields.cc);
-    setBcc(chosen.bcc?.join(', ') ?? '');
-    setShowCcBcc((chosen.bcc?.length ?? 0) > 0);
+    setBcc('');
+    setReplyTo(senderReplyTo(chosen));
+    setShowCcBcc(false);
     setSubject(fields.subject);
     setEditorSeed(fields.html);
     setInitialized(true);
-    if (chosen) rememberIdentity(chosen);
+    rememberSender(chosen);
   }, [
     draftId,
     draftQuery.data,
     draftQuery.isError,
     draftQuery.isPending,
     effectiveSeed,
-    groupsQuery.data,
-    groupsQuery.isError,
-    groupsQuery.isPending,
+    sendersQuery.data,
+    sendersQuery.isError,
+    sendersQuery.isPending,
     i18n.language,
     initialized,
     storedSeed,
@@ -438,6 +431,7 @@ export function ComposeForm({
         setCc((data.fields.cc ?? []).join(', '));
         setBcc((data.fields.bcc ?? []).join(', '));
         setSubject(data.fields.subject);
+        setReplyTo((data.fields.replyTo ?? '').trim());
         setEditorSeed(data.fields.bodyHtml);
         setSavedAt(new Date());
         setSaveError(null);
@@ -452,11 +446,11 @@ export function ComposeForm({
 
   useEffect(() => {
     const handlePageHide = () => {
-      if (initialized && identity) void saverRef.current.flush();
+      if (initialized && sender) void saverRef.current.flush();
     };
     window.addEventListener('pagehide', handlePageHide);
     return () => window.removeEventListener('pagehide', handlePageHide);
-  }, [identity, initialized]);
+  }, [sender, initialized]);
 
   const touch = () => {
     setSaveError(null);
@@ -484,10 +478,10 @@ export function ComposeForm({
     touch();
   };
 
-  const selectIdentity = (next: Identity) => {
-    rememberIdentity(next);
-    setIdentity(next);
-    setBcc(next.bcc?.join(', ') ?? '');
+  const selectSender = (next: Sender) => {
+    rememberSender(next);
+    setSender(next);
+    setReplyTo(senderReplyTo(next));
     touch();
   };
 
@@ -496,7 +490,7 @@ export function ComposeForm({
     closeRequestedRef.current = true;
     setClosing(true);
     try {
-      if (identity) await saver.flush();
+      if (sender) await saver.flush();
     } catch {
       closeRequestedRef.current = false;
       setClosing(false);
@@ -514,8 +508,8 @@ export function ComposeForm({
 
   const runSend = async (scheduledDateTime?: string) => {
     setActionError(null);
-    if (!identity) {
-      setActionError(t('compose.identityRequired'));
+    if (!sender) {
+      setActionError(t('compose.senderRequired'));
       return;
     }
     const recipients = parseRecipientInput(to);
@@ -542,7 +536,7 @@ export function ComposeForm({
       let id = saved?.id ?? draftIdRef.current;
       if (!id) {
         const payload = buildPayloadRef.current();
-        if (!payload) throw new Error(t('compose.identityRequired'));
+        if (!payload) throw new Error(t('compose.senderRequired'));
         const created = await createDraft(payload);
         id = created.id;
         draftIdRef.current = created.id;
@@ -550,12 +544,7 @@ export function ComposeForm({
         setRevision(created.revision);
         saver.prime(created);
       }
-      await sendMessage({
-        draftId: id,
-        identityAccountId: identity.accountId,
-        identityEmail: identity.email,
-        scheduledAt,
-      });
+      await sendMessage({ draftId: id, scheduledAt });
       toast(scheduledAt ? t('compose.scheduledSuccess') : t('compose.sendSuccess'));
       channelRef.current?.postMessage({ type: 'draft-sent', draftId: id });
       saver.cancel();
@@ -592,14 +581,14 @@ export function ComposeForm({
 
   if (
     (draftId && draftQuery.isPending) ||
-    (!draftId && groupsQuery.isPending) ||
+    (!draftId && sendersQuery.isPending) ||
     (!initialized && settingsQuery.isPending)
   ) {
     return <LoadingState label={t('app.loading')} />;
   }
 
-  if (!draftId && groupsQuery.isError) {
-    return <ErrorState error={groupsQuery.error} onRetry={() => void groupsQuery.refetch()} />;
+  if (!draftId && sendersQuery.isError) {
+    return <ErrorState error={sendersQuery.error} onRetry={() => void sendersQuery.refetch()} />;
   }
 
   if (draftId && draftQuery.isError) {
@@ -613,7 +602,7 @@ export function ComposeForm({
             setDraftId(undefined);
             draftIdRef.current = undefined;
             setInitialized(false);
-            setIdentity(null);
+            setSender(null);
             setEditorSeed('');
             if (typeof window !== 'undefined') window.name = '';
           }}
@@ -624,7 +613,7 @@ export function ComposeForm({
     );
   }
 
-  if (!identity) {
+  if (!sender) {
     return (
       <div className="flex h-full flex-col">
         <div className="flex h-12 items-center justify-end border-b px-3">
@@ -638,17 +627,16 @@ export function ComposeForm({
           </Button>
         </div>
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="text-sm font-medium">{t('compose.noIdentities')}</p>
-          <p className="max-w-sm text-sm text-muted-foreground">{t('compose.noAccounts')}</p>
+          <p className="text-sm font-medium">{t('compose.noAccounts')}</p>
           <Button asChild variant="outline" size="sm">
-            <Link to="/settings/identities">{t('identity.title')}</Link>
+            <Link to="/settings/accounts">{t('settings.nav.accounts')}</Link>
           </Button>
         </div>
       </div>
     );
   }
 
-  const selectedIdentity = identity;
+  const selectedSender = sender;
 
   const statusText = savingDraft
     ? t('compose.savingDraft')
@@ -739,35 +727,39 @@ export function ComposeForm({
 
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="w-14 shrink-0 text-xs text-muted-foreground">{t('compose.identity')}</span>
-            <IdentityPicker
-              groups={groupsQuery.data ?? []}
-              value={selectedIdentity}
-              onSelect={selectIdentity}
+            <span className="w-14 shrink-0 text-xs text-muted-foreground">{t('compose.from')}</span>
+            <SenderPicker
+              senders={sendersQuery.data ?? []}
+              value={selectedSender}
+              onSelect={selectSender}
             >
               <button
                 type="button"
                 className="inline-flex max-w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 py-1.5 text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label={t('compose.chooseIdentity')}
+                aria-label={t('compose.chooseSender')}
               >
                 <span className="min-w-0 truncate">
-                  {selectedIdentity.name
-                    ? `${selectedIdentity.name} <${selectedIdentity.email}>`
-                    : selectedIdentity.email}
+                  {senderName(selectedSender)} &lt;{selectedSender.email}&gt;
                 </span>
                 <ChevronDown className="size-3.5 shrink-0 opacity-60" aria-hidden="true" />
               </button>
-            </IdentityPicker>
-            {selectedIdentity?.replyTo ? (
-              <span className="text-xs text-muted-foreground">
-                {t('compose.replyTo')}: {selectedIdentity.replyTo}
-              </span>
-            ) : null}
-            {selectedIdentity && selectedIdentity.signatureMode !== 'none' ? (
-              <span className="text-[11px] text-muted-foreground">
-                {t('compose.signatureByServer')}
-              </span>
-            ) : null}
+            </SenderPicker>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label htmlFor="compose-reply-to" className="w-14 shrink-0 text-xs font-normal text-muted-foreground">
+              {t('compose.replyTo')}
+            </Label>
+            <Input
+              id="compose-reply-to"
+              value={replyTo}
+              onChange={(event) => {
+                setReplyTo(event.target.value);
+                touch();
+              }}
+              aria-label={t('compose.replyTo')}
+              autoComplete="off"
+            />
           </div>
 
           <div className="flex items-center gap-2">

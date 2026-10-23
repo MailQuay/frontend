@@ -44,7 +44,7 @@ The shell uses a fixed left rail with a content-area top bar:
 - The task ring is a `36px` multi-segment progress ring. Each task type uses a color token, takes an arc proportional to its workload, and fills that arc by completion percentage. With no work, the ring is white.
 - Hovering or focusing the ring opens a downward task panel listing running and queued jobs with account, percentage, and counts. Colors are never the only signal.
 - Settings open as a centered overlay dialog above the mail shell, with shared left navigation, search, close button, and `Escape` to return. Each group keeps its own path.
-- Compose opens an in-app window. Its top-left send button opens an identity picker grouped by account, with search.
+- Compose opens an in-app window. The sender row picks the mailbox account; Reply-To is a prefilled editable field.
 - Action feedback uses one notification stack in the bottom-right: collapsed to the newest row, hover expands up to four, newest first. Forms keep no inline success or error text.
 - The saved theme is applied before the first paint, so dark mode does not flash light on reload.
 - Below `md`, the rail moves into a `Sheet` drawer. The message list and reader become separate views in the same document instead of side-by-side panes.

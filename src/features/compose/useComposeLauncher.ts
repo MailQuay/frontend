@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from '@/components/ui/toast';
 import { fetchAccounts } from '@/features/accounts/api';
-import { fetchIdentities, type Identity } from '@/features/identities/api';
 import { createDraft } from '@/features/compose/draft-api';
 import { fetchSettings, settingsKeys } from '@/features/settings/api';
 import { useErrorMessage } from '@/hooks/useErrorMessage';
@@ -77,26 +76,10 @@ export function useComposeLauncher() {
           return;
         }
         const preferred = seed.accountId ?? seed.message?.accountId;
-        const ordered = preferred
-          ? [
-              ...accounts.filter((account) => account.id === preferred),
-              ...accounts.filter((account) => account.id !== preferred),
-            ]
-          : accounts;
-        let identity: Identity | undefined;
-        for (const account of ordered) {
-          const list = await fetchIdentities(account.id);
-          identity = list.find((entry) => entry.isDefault) ?? list[0];
-          if (identity) break;
-        }
-        if (!identity) {
-          opened.close();
-          toast(t('compose.noIdentities'), { variant: 'destructive' });
-          return;
-        }
+        const account =
+          accounts.find((entry) => entry.id === preferred) ?? accounts[0];
         const draft = await createDraft({
-          identityAccountId: identity.accountId,
-          identityEmail: identity.email,
+          accountId: account.id,
           subject: '',
           bodyText: '',
           bodyHtml: '',

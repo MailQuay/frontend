@@ -36,7 +36,6 @@ interface MailFormState {
   draftPushDelaySeconds: number;
   composeWindowMode: NonNullable<SettingsUpdate['composeWindowMode']>;
   sendRetryLimit: number;
-  signaturePosition: NonNullable<SettingsUpdate['signaturePosition']>;
 }
 
 const EMPTY: MailFormState = {
@@ -49,7 +48,6 @@ const EMPTY: MailFormState = {
   draftPushDelaySeconds: 30,
   composeWindowMode: 'in_app',
   sendRetryLimit: 3,
-  signaturePosition: 'above_quote',
 };
 
 export function MailSettingsPage() {
@@ -72,7 +70,6 @@ export function MailSettingsPage() {
       draftPushDelaySeconds: settings.draftPushDelaySeconds,
       composeWindowMode: settings.composeWindowMode,
       sendRetryLimit: settings.sendRetryLimit,
-      signaturePosition: settings.signaturePosition,
     });
   }, [query.data]);
 
@@ -139,7 +136,6 @@ export function MailSettingsPage() {
       draftPushDelaySeconds: form.draftPushDelaySeconds,
       composeWindowMode: form.composeWindowMode,
       sendRetryLimit: form.sendRetryLimit,
-      signaturePosition: form.signaturePosition,
     });
   };
 
@@ -351,53 +347,6 @@ export function MailSettingsPage() {
               value={form.sendRetryLimit}
               onChange={(event) => update('sendRetryLimit', Number(event.target.value))}
               className="w-24"
-            />
-          }
-        />
-        <SettingsDivider />
-        <SettingsRow
-          title={t('settings.mail.signaturePosition')}
-          htmlFor="mail-signature-position"
-          control={
-            <Select
-              value={form.signaturePosition}
-              onValueChange={(value) =>
-                update('signaturePosition', value === 'below_quote' ? 'below_quote' : 'above_quote')
-              }
-            >
-              <SelectTrigger id="mail-signature-position" className="w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="above_quote">
-                  {t('settings.mail.signatureOptions.above_quote')}
-                </SelectItem>
-                <SelectItem value="below_quote">
-                  {t('settings.mail.signatureOptions.below_quote')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          }
-        />
-      </SettingsSection>
-
-      <SettingsDivider />
-
-      <SettingsSection
-        title={t('settings.mail.listBehavior')}
-        description={t('settings.mail.listBehaviorHint')}
-      >
-        <SettingsRow
-          title={t('settings.mail.removeReadImmediately')}
-          description={t('settings.mail.removeReadImmediatelyHint')}
-          control={
-            <Switch
-              checked={query.data.removeReadImmediately}
-              onCheckedChange={(value) =>
-                saveListBehavior.mutate({ removeReadImmediately: value })
-              }
-              disabled={saveListBehavior.isPending}
-              aria-label={t('settings.mail.removeReadImmediately')}
             />
           }
         />
